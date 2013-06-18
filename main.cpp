@@ -10,6 +10,9 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/ADT/ArrayRef.h"
+
+#include "Lexer.hpp"
+
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -18,66 +21,6 @@
 
 using namespace std;
 using namespace llvm;
-
-// Lexer
-//------
-enum Token {
-  tok_eof = -1,
-
-  tok_def = -2, tok_extern = -3,
-
-  tok_identifier = -4, tok_number = -5,
-};
-
-static string IdentifierStr;
-static double NumVal;
-
-static int gettok() {
-  static int LastChar = ' ';
-  
-  while (isspace(LastChar))
-	LastChar = getchar();
-
-  // check identifier
-  if (isalpha(LastChar)) {
-	IdentifierStr = LastChar;
-	while (isalnum(LastChar = getchar())) 
-	  IdentifierStr += LastChar;
-
-	if (IdentifierStr == "def") return tok_def;
-	if (IdentifierStr == "extern") return tok_extern;
-	return tok_identifier;
-  }
-
-  // check number literal
-  if (isdigit(LastChar) || LastChar == '.') {
-	string NumStr;
-	do {
-	  NumStr += LastChar;
-	  LastChar = getchar();
-	} while (isdigit(LastChar) || LastChar == '.');
-
-	NumVal = strtod(NumStr.c_str(), 0);
-	return tok_number;
-  }
-
-  // check for comment
-  if (LastChar == '#') {
-	do LastChar = getchar();
-	while (LastChar != '\n' && LastChar != EOF);
-
-	if (LastChar != EOF)
-	  return gettok();
-
-  }
-
-  if (LastChar == EOF)
-	return tok_eof;
-
-  int ThisChar = LastChar;
-  LastChar = getchar();
-  return ThisChar;
-}
 
 // AST structures
 //---------------
@@ -141,10 +84,11 @@ public:
 
 // Parser
 //-------
+static Lexer TheLexer;
 
 static int CurTok;
 static int getNextToken() {
-  return CurTok = gettok();
+  return CurTok = TheLexer.GetToken();
 }
 
 // Error helpers
@@ -165,7 +109,7 @@ FunctionAST *ErrorF(const char *Str) {
 
 // Expression parsing
 static ExprAST *ParseNumberExpr() {
-  ExprAST *Result = new NumberExprAST(NumVal);
+  ExprAST *Result = new NumberExprAST(TheLexer.GetNumVal());
   getNextToken();
   return Result;
 }
@@ -187,7 +131,7 @@ static ExprAST *ParseParenExpr() {
 }
 
 static ExprAST *ParseIdentifierExpr() {
-  string IdName = IdentifierStr;
+	string IdName = TheLexer.GetIdentifierStr();
   
   getNextToken(); // eat the identifier
 
@@ -278,7 +222,7 @@ static PrototypeAST *ParsePrototype() {
   if (CurTok != tok_identifier)
 	return ErrorP("Expected name of function");
 
-  string name = IdentifierStr;
+  string name = TheLexer.GetIdentifierStr();
   getNextToken(); // eat name
   
   if (CurTok != '(')
@@ -286,7 +230,7 @@ static PrototypeAST *ParsePrototype() {
 
   vector<string> args;
   while (getNextToken() == tok_identifier) {
-	args.push_back(IdentifierStr);
+	  args.push_back(TheLexer.GetIdentifierStr());
   }
 
   if (CurTok != ')')

@@ -10,10 +10,6 @@ enum Token {
   tok_identifier = -4, tok_number = -5,
 };
 
-//struct Token {
-//  
-//}
-
 class Lexer {
   string IdentifierStr;
   double NumVal;

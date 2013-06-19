@@ -11,7 +11,8 @@
 #include "llvm/Module.h"
 #include "llvm/ADT/ArrayRef.h"
 
-#include "Lexer.hpp"
+#include "Parser.hpp"
+#include "Errors.hpp"
 
 #include <cstdio>
 #include <cstdlib>
@@ -22,260 +23,14 @@
 using namespace std;
 using namespace llvm;
 
-// AST structures
-//---------------
-class ExprAST {
-public:
-  virtual ~ExprAST() {};
-  virtual Value *Codegen() = 0;
-};
-
-// Numeric literals
-class NumberExprAST : public ExprAST {
-  double Val;
-public:
-  NumberExprAST(double val) : Val(val) {}
-  virtual Value *Codegen();
-};
-
-// Variable
-class VariableExprAST : public ExprAST {
-  string Name;
-public:
-  VariableExprAST(const string &name) : Name(name) {}
-  virtual Value *Codegen();
-};
-
-// Binary op
-class BinaryExprAST : public ExprAST {
-  char Op;
-  ExprAST *LHS, *RHS;
-public:
-  BinaryExprAST(char op, ExprAST *lhs, ExprAST *rhs) : Op(op), LHS(lhs), RHS(rhs) {} 
-  virtual Value *Codegen();
-};
-
-// Function call
-class CallExprAST : public ExprAST {
-  string Callee;
-  vector<ExprAST*> Args;
-public:
-  CallExprAST(const string &callee, vector<ExprAST*> &args) : Callee(callee), Args(args) {}
-  virtual Value *Codegen();
-};
-
-// Function signature definition
-class PrototypeAST {
-  string Name;
-  vector<string> Args;
-public:
-  PrototypeAST(const string &name, vector<string> &args) : Name(name), Args(args) {}
-  virtual Function *Codegen();
-};
-
-// Function definition
-class FunctionAST {
-  PrototypeAST *Prototype;
-  ExprAST *Body;
-public:
-  FunctionAST(PrototypeAST *prototype, ExprAST *body) : Prototype(prototype), Body(body) {}
-  virtual Function *Codegen();
-};
-
-// Parser
-//-------
-static Lexer TheLexer;
-
-static int CurTok;
-static int getNextToken() {
-  return CurTok = TheLexer.GetToken();
-}
-
-// Error helpers
-ExprAST *Error(const char *Str) {
-  fprintf(stderr, "Error: %s\n", Str);
-  return 0;
-}
-
-PrototypeAST *ErrorP(const char *Str) {
-  Error(Str);
-  return 0;
-}
-
-FunctionAST *ErrorF(const char *Str) {
-  Error(Str);
-  return 0;
-}
-
-// Expression parsing
-static ExprAST *ParseNumberExpr() {
-  ExprAST *Result = new NumberExprAST(TheLexer.GetNumVal());
-  getNextToken();
-  return Result;
-}
-
-static ExprAST *ParseExpression();
-
-static ExprAST *ParseParenExpr() {
-  getNextToken(); // eat (
-  ExprAST *V = ParseExpression();
-  if (!V) 
-	return 0;
-
-  if (CurTok != ')')
-	return Error("Expected ')'");
-
-  getNextToken(); // eat )
-
-  return V;
-}
-
-static ExprAST *ParseIdentifierExpr() {
-	string IdName = TheLexer.GetIdentifierStr();
-  
-  getNextToken(); // eat the identifier
-
-  if (CurTok != '(')
-	return new VariableExprAST(IdName);
-
-  getNextToken();
-  vector<ExprAST*> Args;
-  if (CurTok != ')') {
-	while (1) {
-	  ExprAST *Arg = ParseExpression();
-	  if (!Arg) 
-		return 0;
-
-	  Args.push_back(Arg);
-	  if (CurTok == ')')
-		break;
-
-//	  if (CurTok != ',')
-//		return Error("Expected ')' or ',' in argument list");
-//	  getNextToken(); // eat ,
-	}
-  }
-
-  getNextToken(); // eat )
-  
-  return new CallExprAST(IdName, Args);
-}
-
-static ExprAST *ParsePrimary() {
-  switch (CurTok) {
-  case tok_identifier: return ParseIdentifierExpr();
-  case tok_number: return ParseNumberExpr();
-  case '(': return ParseParenExpr();
-  default: return Error("Expected expression");
-  }
-}
-
-static map<char, int> BinopPrecedence;
-
-static int GetTokPrecedence() {
-  if (!isascii(CurTok))
-	return -1;
-
-  int prec = BinopPrecedence[CurTok];
-  if (prec <= 0)
-	return -1;
-
-  return prec;
-}
-
-static ExprAST* ParseBinOpRHS(int exprPrec, ExprAST* lhs);
-
-static ExprAST *ParseExpression() {
-  ExprAST *LHS = ParsePrimary();
-  if (!LHS)
-	return 0;
-
-  return ParseBinOpRHS(0, LHS);
-}
-
-static ExprAST* ParseBinOpRHS(int exprPrec, ExprAST* lhs) {
-  while(1) {
-	int tokPrec = GetTokPrecedence();
-
-	if (tokPrec < exprPrec)
-	  return lhs;
-
-	int binOp = CurTok;
-	getNextToken(); // eat the operator
-	
-	ExprAST *rhs = ParsePrimary();
-	if (!rhs)
-	  return 0;
-
-	int nextTokPrec = GetTokPrecedence();
-	if (tokPrec < nextTokPrec) {
-	  rhs = ParseBinOpRHS(tokPrec + 1, rhs);
-	  if (rhs == 0)
-		return 0;
-	}
-
-	lhs = new BinaryExprAST(binOp, lhs, rhs);
-  }
-}
-
-static PrototypeAST *ParsePrototype() {
-  if (CurTok != tok_identifier)
-	return ErrorP("Expected name of function");
-
-  string name = TheLexer.GetIdentifierStr();
-  getNextToken(); // eat name
-  
-  if (CurTok != '(')
-	return ErrorP("Expected '(' after name of function");
-
-  vector<string> args;
-  while (getNextToken() == tok_identifier) {
-	  args.push_back(TheLexer.GetIdentifierStr());
-  }
-
-  if (CurTok != ')')
-	return ErrorP("Expected ')' at end of function name");
-
-  getNextToken(); // eat )
-
-  return new PrototypeAST(name, args);  
-}
-
-static FunctionAST *ParseDefinition() {
-  getNextToken(); // eat "def"
-  PrototypeAST *prototype = ParsePrototype();
-  if (prototype == 0)
-	return 0;
-
-  ExprAST *body = ParseExpression();
-  if (body != 0)
-	return new FunctionAST(prototype, body);
-  
-  return 0;  
-}
-
-static PrototypeAST *ParseExtern() {
-  getNextToken(); // eat "extern"
-  return ParsePrototype();
-}
-
-// Top level expressions
-static FunctionAST *ParseTopLevelExpr() {
-  if (ExprAST *expr = ParseExpression()) {
-	vector<string> args;
-	PrototypeAST *prototype = new PrototypeAST("", args);
-	return new FunctionAST(prototype, expr);
-  }
-  return 0;
-}
-
 // Top level handling
 //-------
 
 static ExecutionEngine *ExecEngine;
+static Parser TheParser;
 
 static void HandleDefinition() {
-  FunctionAST *func = ParseDefinition();
+  FunctionAST *func = TheParser.ParseDefinition();
   Function *code = func->Codegen();
   if (func && code) 
   {
@@ -285,11 +40,11 @@ static void HandleDefinition() {
 //	  code->dump();
   }
   else
-	getNextToken();
+	TheParser.GetNextToken();
 }
 
 static void HandleExtern() {
-  PrototypeAST *ext = ParseExtern();
+  PrototypeAST *ext = TheParser.ParseExtern();
   Function *code = ext->Codegen();
   if (ext && code) 
   {
@@ -297,11 +52,11 @@ static void HandleExtern() {
 //	  code->dump();
   }
   else
-	getNextToken();
+	TheParser.GetNextToken();
 }
 
 static void HandleTopLevelExpr() {
-  FunctionAST *expr = ParseTopLevelExpr();
+  FunctionAST *expr = TheParser.ParseTopLevelExpr();
   Function *code = expr->Codegen();
   if (expr && code)
   {
@@ -313,17 +68,17 @@ static void HandleTopLevelExpr() {
 //	  code->dump();
   }
   else
-	getNextToken();
+	TheParser.GetNextToken();
 }
 
 static void MainLoop() {
   while(1) {
 	fprintf(stderr, ">");
-	switch(CurTok) {
+	switch(TheParser.GetCurTok()) {
 	case tok_eof: return;
 	case tok_def: HandleDefinition(); break;
 	case tok_extern: HandleExtern(); break;
-	case ';': getNextToken(); break; // ignore ;
+	case ';': TheParser.GetNextToken(); break; // ignore ;
 	default: HandleTopLevelExpr(); break;
 	}
   }
@@ -332,10 +87,6 @@ static void MainLoop() {
 
 // Code generation
 //----------------
-Value *ErrorV(const char *Str) {
-  Error(Str);
-  return 0;
-}
 
 static Module *TheModule;
 static FunctionPassManager *TheFPM;
@@ -454,11 +205,6 @@ int main()
 	InitializeNativeTarget();
 	LLVMContext &Context = getGlobalContext();
 
-	BinopPrecedence['<'] = 10;
-	BinopPrecedence['+'] = 20;
-	BinopPrecedence['-'] = 20;
-	BinopPrecedence['*'] = 40;
-
 	TheModule = new Module("JIT", Context);
 
 	string ErrStr;
@@ -482,7 +228,7 @@ int main()
 	TheFPM = &FPM;
 
 	fprintf(stderr, ">");
-	getNextToken();
+	TheParser.GetNextToken();
 	  
 	MainLoop();
 

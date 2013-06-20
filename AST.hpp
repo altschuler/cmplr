@@ -47,6 +47,14 @@ public:
   virtual Value *Codegen();
 };
 
+class ConditionalExprAST : public ExprAST {
+  ExprAST *Cond, *Then, *Else;
+public:
+ConditionalExprAST(ExprAST *cond, ExprAST *then, ExprAST *els) 
+  : Cond(cond), Then(then), Else(els) {}
+  virtual Value *Codegen();
+};
+
 // Function call
 class CallExprAST : public ExprAST {
   string Callee;

@@ -78,11 +78,33 @@ ExprAST *Parser::ParsePrimary() {
   switch (CurTok) {
   case tok_identifier: return this->ParseIdentifierExpr();
   case tok_number: return this->ParseNumberExpr();
+  case tok_if: return this->ParseConditional();
   case '(': return this->ParseParenExpr();
   default: return Error("Expected expression");
   }
 }
 
+ExprAST *Parser::ParseConditional() {
+  this->GetNextToken(); // eat if
+  
+  ExprAST *cond = this->ParseExpression();
+
+  if (this->GetCurTok() != tok_then)
+	return Error("Expected 'then'");
+
+  this->GetNextToken(); // eat then
+
+  ExprAST *then = this->ParseExpression();
+
+  if (this->GetCurTok() != tok_else)
+	return Error("Expected 'else'");
+  
+  this->GetNextToken(); // eat else
+
+  ExprAST *els = this->ParseExpression();  
+
+  return new ConditionalExprAST(cond, then, els);
+}
 
 int Parser::GetTokPrecedence() {
   if (!isascii(CurTok))

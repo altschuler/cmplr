@@ -34,10 +34,8 @@ static void HandleDefinition() {
   Function *code = func->Codegen();
   if (func && code) 
   {
-	  fprintf(stderr, "Parsed definition.\n");
-	  code->viewCFG();
-//code->getReturnType()->getStructName().str()
-//	  code->dump();
+	//	  fprintf(stderr, "Parsed definition.\n");
+	//	  code->dump();
   }
   else
 	TheParser.GetNextToken();
@@ -48,8 +46,8 @@ static void HandleExtern() {
   Function *code = ext->Codegen();
   if (ext && code) 
   {
-	  fprintf(stderr, "Parsed an extern.\n");
-//	  code->dump();
+	//	  fprintf(stderr, "Parsed an extern.\n");
+	//	  code->dump();
   }
   else
 	TheParser.GetNextToken();
@@ -64,8 +62,7 @@ static void HandleTopLevelExpr() {
 
 	  double (*fptr)() = (double (*)())(intptr_t)funcPtr;
 	  fprintf(stderr, "[%i] %f\n", code->getValueID(), fptr());
-//	  fprintf(stderr, "Parsed top level expression\n");	  
-//	  code->dump();
+	  //	  code->dump();
   }
   else
 	TheParser.GetNextToken();
@@ -140,6 +137,51 @@ Value *CallExprAST::Codegen() {
   return Builder.CreateCall(CalleeF, *argArr, "tmpcall");
 }
 
+Value *ConditionalExprAST::Codegen() {
+  Value *condVal = Cond->Codegen();
+  if (condVal == 0)
+	return 0;
+
+  condVal = Builder.CreateFCmpONE(condVal, ConstantFP::get(getGlobalContext(), APFloat(0.0)), "ifcond");
+
+  Function *func = Builder.GetInsertBlock()->getParent();
+
+  BasicBlock *thenBlock = BasicBlock::Create(getGlobalContext(), "then", func);
+  BasicBlock *elseBlock = BasicBlock::Create(getGlobalContext(), "else");
+  BasicBlock *mergeBlock = BasicBlock::Create(getGlobalContext(), "merge");
+
+  Builder.CreateCondBr(condVal, thenBlock, elseBlock);
+
+  Builder.SetInsertPoint(thenBlock);
+  
+  Value *thenVal = Then->Codegen();
+  if (thenVal == 0)
+	return 0;
+
+  Builder.CreateBr(mergeBlock);
+
+  thenBlock = Builder.GetInsertBlock();
+  
+  func->getBasicBlockList().push_back(elseBlock);
+  Builder.SetInsertPoint(elseBlock);
+  
+  Value *elseVal = Else->Codegen();
+  if (elseVal == 0)
+	return 0;
+
+  Builder.CreateBr(mergeBlock);
+  elseBlock = Builder.GetInsertBlock();
+
+  func->getBasicBlockList().push_back(mergeBlock);
+  Builder.SetInsertPoint(mergeBlock);
+
+  PHINode *phi = Builder.CreatePHI(Type::getDoubleTy(getGlobalContext()), 2, "iftmp");
+  phi->addIncoming(thenVal, thenBlock);
+  phi->addIncoming(elseVal, elseBlock);
+
+  return phi;
+}
+
 Function *PrototypeAST::Codegen() 
 {
   vector<Type*> Doubles(Args.size(), Type::getDoubleTy(getGlobalContext()));
@@ -186,7 +228,8 @@ Function *FunctionAST::Codegen()
 	BasicBlock *block = BasicBlock::Create(getGlobalContext(), "entry", func);
 	Builder.SetInsertPoint(block);
 	
-	if (Value *retVal = Body->Codegen()) 
+	Value *retVal = Body->Codegen();
+	if (retVal) 
 	{
 		Builder.CreateRet(retVal);
 		verifyFunction(*func);
@@ -197,8 +240,6 @@ Function *FunctionAST::Codegen()
 	func->eraseFromParent();
 	return 0;
 }
-
-
 
 int main() 
 {

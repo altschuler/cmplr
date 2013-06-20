@@ -23,11 +23,13 @@ public:
   ExprAST *ParseParenExpr();
   ExprAST *ParseIdentifierExpr();
   ExprAST *ParsePrimary();
-  ExprAST* ParseBinOpRHS(int exprPrec, ExprAST* lhs);
+  ExprAST *ParseBinOpRHS(int exprPrec, ExprAST* lhs);
+  ExprAST *ParseConditional();
   PrototypeAST *ParsePrototype();
   FunctionAST *ParseDefinition();
   PrototypeAST *ParseExtern();
   FunctionAST *ParseTopLevelExpr();
+
 
 private:
   int GetTokPrecedence();

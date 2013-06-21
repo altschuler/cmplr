@@ -16,7 +16,7 @@ class Lexer {
   double NumVal;
 
 public:
-  Lexer();
+  Lexer() : IdentifierStr(""), NumVal(0.0) {}
   int GetToken();
 
   string GetIdentifierStr() { return IdentifierStr; }

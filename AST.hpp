@@ -1,5 +1,3 @@
-// AST structures
-//---------------
 #include "llvm/DerivedTypes.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
@@ -16,10 +14,15 @@
 using namespace std;
 using namespace llvm;
 
+enum ASTType {
+  ASTNumberExpr, ASTVariableExpr, ASTBinaryExpr, ASTCallExpr, ASTConditionalExpr, 
+  ASTPrototype, ASTFunction,
+};
+
 class ExprAST {
 public:
   virtual ~ExprAST() {};
-  virtual Value *Codegen() = 0;
+  virtual ASTType GetASTType() = 0;
 };
 
 // Numeric literals
@@ -27,7 +30,9 @@ class NumberExprAST : public ExprAST {
   double Val;
 public:
   NumberExprAST(double val) : Val(val) {}
-  virtual Value *Codegen();
+  double GetVal() { return this->Val; }
+
+  virtual ASTType GetASTType() { return ASTNumberExpr; }
 };
 
 // Variable
@@ -35,7 +40,9 @@ class VariableExprAST : public ExprAST {
   string Name;
 public:
   VariableExprAST(const string &name) : Name(name) {}
-  virtual Value *Codegen();
+  string GetName() { return this->Name; }
+
+  virtual ASTType GetASTType() { return ASTVariableExpr; }
 };
 
 // Binary op
@@ -44,15 +51,24 @@ class BinaryExprAST : public ExprAST {
   ExprAST *LHS, *RHS;
 public:
   BinaryExprAST(char op, ExprAST *lhs, ExprAST *rhs) : Op(op), LHS(lhs), RHS(rhs) {} 
-  virtual Value *Codegen();
+  char GetOp() { return this->Op; }
+  ExprAST *GetLHS() { return this->LHS; }
+  ExprAST *GetRHS() { return this->RHS; }
+
+  virtual ASTType GetASTType() { return ASTBinaryExpr; }
 };
 
 class ConditionalExprAST : public ExprAST {
   ExprAST *Cond, *Then, *Else;
 public:
-ConditionalExprAST(ExprAST *cond, ExprAST *then, ExprAST *els) 
-  : Cond(cond), Then(then), Else(els) {}
-  virtual Value *Codegen();
+  ConditionalExprAST(ExprAST *cond, ExprAST *then, ExprAST *els) 
+	: Cond(cond), Then(then), Else(els) {}
+  
+  ExprAST *GetCond() { return this->Cond; }
+  ExprAST *GetThen() { return this->Then; }
+  ExprAST *GetElse() { return this->Else; }
+
+  virtual ASTType GetASTType() { return ASTConditionalExpr; }
 };
 
 // Function call
@@ -61,7 +77,12 @@ class CallExprAST : public ExprAST {
   vector<ExprAST*> Args;
 public:
   CallExprAST(const string &callee, vector<ExprAST*> &args) : Callee(callee), Args(args) {}
-  virtual Value *Codegen();
+
+  
+  string GetCallee() { return this->Callee; }
+  vector<ExprAST*> GetArgs() { return this->Args; }
+
+  virtual ASTType GetASTType() { return ASTCallExpr; }
 };
 
 // Function signature definition
@@ -70,7 +91,11 @@ class PrototypeAST {
   vector<string> Args;
 public:
   PrototypeAST(const string &name, vector<string> &args) : Name(name), Args(args) {}
-  virtual Function *Codegen();
+
+  string GetName() { return this->Name; };
+  vector<string> GetArgs() { return this->Args; };
+
+  virtual ASTType GetASTType() { return ASTPrototype; }
 };
 
 // Function definition
@@ -79,6 +104,10 @@ class FunctionAST {
   ExprAST *Body;
 public:
   FunctionAST(PrototypeAST *prototype, ExprAST *body) : Prototype(prototype), Body(body) {}
-  virtual Function *Codegen();
+
+  PrototypeAST *GetPrototype() { return this->Prototype; };
+  ExprAST *GetBody() { return this->Body; };
+
+  virtual ASTType GetASTType() { return ASTFunction; }
 };
 #endif

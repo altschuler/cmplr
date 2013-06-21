@@ -8,11 +8,6 @@
 
 using namespace std;
 
-Lexer::Lexer () {
-  IdentifierStr = "";
-  NumVal = 0.0;
-}
-
 int Lexer::GetToken() {
   static int LastChar = ' ';
   

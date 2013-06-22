@@ -4,4 +4,4 @@ FILES = $(wildcard *.cpp)
 #HEADERS = $(wildcard *.hpp) $(HEADERS) 
 
 dbuild:
-	clang++ -std=c++0x -g $(FILES) `$(LLVM_CONF) --cppflags --libs core jit native` `$(LLVM_CONF) --ldflags` -o main
+	clang++ -std=c++0x -g -rdynamic $(FILES) `$(LLVM_CONF) --cppflags --libs core jit native` `$(LLVM_CONF) --ldflags` -o main

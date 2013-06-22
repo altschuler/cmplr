@@ -26,7 +26,22 @@ int Parser::GetCurTok() {
   return CurTok;
 }
 
+int Parser::GetTokPrecedence() {
+  if (!isascii(CurTok))
+	return -1;
+
+  int prec = BinopPrecedence[CurTok];
+  if (prec <= 0)
+	return -1;
+
+  return prec;
+}
+
+
+//--------------------
 // Expression parsing
+//--------------------
+
 ExprAST *Parser::ParseNumberExpr() {
   ExprAST *Result = new NumberExprAST(TheLexer.GetNumVal());
   this->GetNextToken();
@@ -79,6 +94,7 @@ ExprAST *Parser::ParsePrimary() {
   case tok_identifier: return this->ParseIdentifierExpr();
   case tok_number: return this->ParseNumberExpr();
   case tok_if: return this->ParseConditional();
+  case tok_for: return this->ParseFor();
   case '(': return this->ParseParenExpr();
   default: return Error("Expected expression");
   }
@@ -106,15 +122,52 @@ ExprAST *Parser::ParseConditional() {
   return new ConditionalExprAST(cond, then, els);
 }
 
-int Parser::GetTokPrecedence() {
-  if (!isascii(CurTok))
-	return -1;
+ExprAST *Parser::ParseFor() {
+  // eat 'for'
+  this->GetNextToken();
 
-  int prec = BinopPrecedence[CurTok];
-  if (prec <= 0)
-	return -1;
+  string iterName = TheLexer.GetIdentifierStr();
+  
+  this->GetNextToken();
+  if (CurTok != '=')
+	return Error("For loop initializor must be assignment, missing '='");
 
-  return prec;
+  // eat '='
+  this->GetNextToken();
+
+  ExprAST *init = this->ParseExpression();
+  if (init == 0)
+	return 0;
+
+  if (CurTok != ',')
+	return Error("Expected comma after for loop initializor");
+  
+  // eat ','
+  this->GetNextToken();
+
+  ExprAST *end = this->ParseExpression();
+  if (end == 0)
+	return 0;
+  
+  ExprAST *step = 0;
+  if (CurTok == ',') {
+	// eat ','
+	this->GetNextToken();
+	
+	step = this->ParseExpression();
+	if (step == 0)
+	  return 0;
+  }
+
+  if (CurTok != tok_in)
+	return Error("Expected 'in' before loop body");
+
+  // eat 'in'
+  this->GetNextToken();
+
+  ExprAST *body = this->ParseExpression();
+
+  return new ForExprAST(iterName, init, step, end, body);
 }
 
 ExprAST *Parser::ParseExpression() {
@@ -128,17 +181,26 @@ ExprAST *Parser::ParseExpression() {
 ExprAST *Parser::ParseBinOpRHS(int exprPrec, ExprAST* lhs) {
   while(1) {
 	int tokPrec = this->GetTokPrecedence();
-
+	
+	// if expression has higher precedence, return lhs
+	// eg if next token is not an operator
 	if (tokPrec < exprPrec)
 	  return lhs;
-
-	int binOp = CurTok;
-	this->GetNextToken(); // eat the operator
 	
+	// save the current operator
+	int binOp = CurTok;
+
+	// eat the current operator and parse the rhs
+	this->GetNextToken(); // eat the operator	
 	ExprAST *rhs = this->ParsePrimary();
 	if (!rhs)
 	  return 0;
-
+	
+	// CurTok is now expected to be either an operator or
+	// not, if not precedence is -1 (and thus always <= tokPrec)
+	//
+	// if the next token has higher precedence than the current
+	// then 
 	int nextTokPrec = this->GetTokPrecedence();
 	if (tokPrec < nextTokPrec) {
 	  rhs = this->ParseBinOpRHS(tokPrec + 1, rhs);

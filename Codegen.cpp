@@ -29,6 +29,7 @@ Value *Codegen::Generate(ExprAST *expr) {
   case ASTConditionalExpr: return this->Generate((ConditionalExprAST *)expr); break;
   case ASTPrototype: return this->Generate((PrototypeAST *)expr); break;
   case ASTFunction: return this->Generate((FunctionAST *)expr); break;
+  case ASTForExpr: return this->Generate((ForExprAST *)expr); break;
   }
 }
 
@@ -142,6 +143,72 @@ Value *Codegen::Generate(ConditionalExprAST *expr) {
 
 	return phi;
 };
+
+Value *Codegen::Generate(ForExprAST *expr) {
+  Value *initVal = this->Generate(expr->GetInit());
+  if (initVal == 0)
+	return 0;
+
+  Function *func = Builder.GetInsertBlock()->getParent();
+  BasicBlock *preHeaderBlock = Builder.GetInsertBlock();
+  BasicBlock *loopBlock = BasicBlock::Create(getGlobalContext(), "loop", func);
+
+  Builder.CreateBr(loopBlock);
+  
+  // set insert to the loop
+  Builder.SetInsertPoint(loopBlock);
+
+  // create the phi node and set initVal as entry
+  PHINode *phi = Builder.CreatePHI(Type::getDoubleTy(getGlobalContext()), 2, expr->GetIterName());
+  phi->addIncoming(initVal, preHeaderBlock);
+
+  // save old value of same name as IterName (if any)
+  Value *oldVal = NamedValues[expr->GetIterName()];
+  NamedValues[expr->GetIterName()] = phi;
+
+  // emit body code
+  if (this->Generate(expr->GetBody()) == 0)
+	return 0;
+
+  // handle step
+  Value *stepVal;
+  if (expr->GetStep()) {
+	stepVal = this->Generate(expr->GetStep());
+	if (stepVal == 0)
+	  return 0;
+  } 
+  // if step is not specified, use ++
+  else {
+	stepVal = ConstantFP::get(getGlobalContext(), APFloat(1.0));
+  }
+
+  Value *nextVal = Builder.CreateFAdd(phi, stepVal, "nextvar");
+
+  Value *endCond = this->Generate(expr->GetEnd());
+  if (endCond == 0)
+	return 0;
+  // booleanize end condition
+  endCond = Builder.CreateFCmpONE(endCond, ConstantFP::get(getGlobalContext(), APFloat(0.0)), "loopcond");
+
+  BasicBlock *loopEndBlock = Builder.GetInsertBlock();
+  BasicBlock *afterBlock = BasicBlock::Create(getGlobalContext(), "afterloop", func);
+  
+  // create the loop ending branch
+  Builder.CreateCondBr(endCond, loopEndBlock, afterBlock);
+  
+  // start inserting code after loop
+  Builder.SetInsertPoint(afterBlock);
+
+  phi->addIncoming(nextVal, loopEndBlock);
+
+  // restore the saved variable
+  if (oldVal) 
+	NamedValues[expr->GetIterName()] = oldVal;
+  else
+	NamedValues.erase(expr->GetIterName());
+
+  return Constant::getNullValue(Type::getDoubleTy(getGlobalContext()));
+}
 
 Function *Codegen::Generate(PrototypeAST *proto) {
   string Name = proto->GetName();

@@ -15,7 +15,8 @@ using namespace std;
 using namespace llvm;
 
 enum ASTType {
-  ASTNumberExpr, ASTVariableExpr, ASTBinaryExpr, ASTCallExpr, ASTConditionalExpr, 
+  ASTNumberExpr, ASTVariableExpr, ASTBinaryExpr, ASTCallExpr, 
+  ASTConditionalExpr, ASTForExpr,
   ASTPrototype, ASTFunction,
 };
 
@@ -71,6 +72,22 @@ public:
   virtual ASTType GetASTType() { return ASTConditionalExpr; }
 };
 
+class ForExprAST : public ExprAST {
+  string IterName;
+  ExprAST *Init, *Step, *End, *Body;
+public:
+  ForExprAST(string iterName, ExprAST *init, ExprAST *step, ExprAST *end, ExprAST *body)
+	: IterName(iterName), Init(init), Step(step), End(end), Body(body) {}
+
+  string GetIterName() { return this->IterName; }
+  ExprAST *GetInit() { return this->Init; }
+  ExprAST *GetStep() { return this->Step; }
+  ExprAST *GetEnd() { return this->End; }
+  ExprAST *GetBody() { return this->Body; }
+
+  virtual ASTType GetASTType() { return ASTForExpr; }  
+};
+
 // Function call
 class CallExprAST : public ExprAST {
   string Callee;
@@ -78,7 +95,6 @@ class CallExprAST : public ExprAST {
 public:
   CallExprAST(const string &callee, vector<ExprAST*> &args) : Callee(callee), Args(args) {}
 
-  
   string GetCallee() { return this->Callee; }
   vector<ExprAST*> GetArgs() { return this->Args; }
 

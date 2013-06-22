@@ -40,6 +40,7 @@ public:
   Value *Generate(BinaryExprAST *expr);
   Value *Generate(CallExprAST *expr);
   Value *Generate(ConditionalExprAST *expr);
+  Value *Generate(ForExprAST *expr);
 
   Function *Generate(PrototypeAST *proto);
   Function *Generate(FunctionAST *proto);

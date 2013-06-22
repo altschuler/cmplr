@@ -25,6 +25,7 @@ public:
   ExprAST *ParsePrimary();
   ExprAST *ParseBinOpRHS(int exprPrec, ExprAST* lhs);
   ExprAST *ParseConditional();
+  ExprAST *ParseFor();
   PrototypeAST *ParsePrototype();
   FunctionAST *ParseDefinition();
   PrototypeAST *ParseExtern();

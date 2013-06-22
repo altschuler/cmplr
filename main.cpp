@@ -8,7 +8,6 @@
 
 #include "Parser.hpp"
 #include "Errors.hpp"
-//#include "BuiltIn.hpp"
 #include "Codegen.hpp"
 
 #include <cstdio>
@@ -85,23 +84,10 @@ static void MainLoop() {
   }
 }
 
-static void CreateBuiltIn(string name, string arg) {
-  vector<string> args;
-  args.push_back(arg);
-  PrototypeAST *proto = new PrototypeAST(name, args);
-  Gen->Generate(proto);
-}
-
-static void CreateBuiltIn(string name) {
-  vector<string> args;
-  PrototypeAST *proto = new PrototypeAST(name, args);
-  Gen->Generate(proto);
-}
-
-void InitBuiltIns() {
-  CreateBuiltIn("sin", "a");
-  CreateBuiltIn("cos", "a");
-  CreateBuiltIn("exit");
+extern "C" 
+double print(double X) {
+  putchar((char)X);
+  return 0;
 }
 
 int main() {
@@ -119,8 +105,6 @@ int main() {
 
   Gen = new Codegen(execEngine, module);
 
-  InitBuiltIns();
-
   fprintf(stderr, ">");
   TheParser.GetNextToken();
 	  
@@ -128,3 +112,13 @@ int main() {
 
   return 0;
 }
+
+
+
+
+
+
+
+
+
+

@@ -26,6 +26,11 @@ Value *ErrorV(const char *Str) {
   return 0;
 }
 
+OperatorAST *ErrorO(const char *Str) {
+  Error(Str);
+  return 0;
+}
+
 const char *formatErr(string msg, string arg) {
   using namespace boost;
 

@@ -30,6 +30,7 @@ Value *Codegen::Generate(ExprAST *expr) {
   case ASTPrototype: return this->Generate((PrototypeAST *)expr); break;
   case ASTFunction: return this->Generate((FunctionAST *)expr); break;
   case ASTForExpr: return this->Generate((ForExprAST *)expr); break;
+  case ASTOperator: return this->Generate((OperatorAST *)expr); break;
   }
 }
 
@@ -38,65 +39,70 @@ Value *Codegen::Generate(NumberExprAST *expr) {
 };
 
 Value *Codegen::Generate(VariableExprAST *expr) {
-	using namespace boost;
-	string name = expr->GetName();
-	Value *val = NamedValues[name];
+  using namespace boost;
+  string name = expr->GetName();
+  Value *val = NamedValues[name];
 
-	if (val)
-		return val;
-	else {
-		return ErrorV(str(format("Unknown variable '%1%'") % name).c_str());
-	}
+  if (val)
+	return val;
+  else {
+	return ErrorV(str(format("Unknown variable '%1%'") % name).c_str());
+  }
 };
 
 Value *Codegen::Generate(BinaryExprAST *expr) {
-	using namespace boost;
+  using namespace boost;
 
-	Value *L = this->Generate(expr->GetLHS());
-	Value *R = this->Generate(expr->GetRHS());
+  Value *L = this->Generate(expr->GetLHS());
+  Value *R = this->Generate(expr->GetRHS());
 
-	if (L == 0 || R == 0)
-		return 0;
+  if (L == 0 || R == 0)
+	return 0;
 
-	switch (expr->GetOp()) {
-	case '+': return Builder.CreateFAdd(L, R, "addtmp");
-	case '-': return Builder.CreateFSub(L, R, "subtmp");
-	case '*': return Builder.CreateFMul(L, R, "multmp");
-	case '<': 
-		L = Builder.CreateFCmpULT(L, R, "cmptmp");
-		return Builder.CreateUIToFP(L, Type::getDoubleTy(getGlobalContext()), "booltmp");
-	default: 
-	  const char *err = str(format("Unknown operator '%1%'") % expr->GetOp()).c_str();
-		return ErrorV(err);
-	}
+  switch (expr->GetOp()) {
+  case '+': return Builder.CreateFAdd(L, R, "addtmp");
+  case '-': return Builder.CreateFSub(L, R, "subtmp");
+  case '*': return Builder.CreateFMul(L, R, "multmp");
+  case '<': 
+	L = Builder.CreateFCmpULT(L, R, "cmptmp");
+	return Builder.CreateUIToFP(L, Type::getDoubleTy(getGlobalContext()), "booltmp");
+  default: break;
+  }
+
+  Function *opFunc = TheModule->getFunction("userop" + expr->GetOp());
+  if (!opFunc) 
+	return ErrorV(str(format("Unknown operator '%1%'") % expr->GetOp()).c_str());
+
+  Value *args[2] = {L, R};
+  return Builder.CreateCall(opFunc, args, "binop");
 };
 
 Value *Codegen::Generate(CallExprAST *expr) {
-	using namespace boost;
+  using namespace boost;
 
-	string callee = expr->GetCallee();
-	vector<ExprAST*> args = expr->GetArgs();
+  string callee = expr->GetCallee();
+  vector<ExprAST*> args = expr->GetArgs();
 
-	Function *CalleeF = TheModule->getFunction(callee);
-	if (CalleeF == 0) 
-		return ErrorV(formatErr("Unknown function '%1%'", callee.c_str()));
+  Function *CalleeF = TheModule->getFunction(callee);
+  if (CalleeF == 0) 
+	return ErrorV(formatErr("Unknown function '%1%'", callee.c_str()));
 
-	if (CalleeF->arg_size() != args.size())
-		return ErrorV(str(format("Wrong number of arguments in function %1%; got %2%, %3% expected") 
-						  % args.size() 
-						  % CalleeF->arg_size()  
-						  % callee).c_str());
+  if (CalleeF->arg_size() != args.size())
+	return ErrorV(str(format("Wrong number of arguments in function %1%; got %2%, %3% expected") 
+					  % args.size() 
+					  % CalleeF->arg_size()  
+					  % callee).c_str());
 
-	vector<Value*> ArgsV;
-	for (unsigned i = 0, e = args.size(); i != e; ++i) {
-	  Value *arg = this->Generate(args[i]);
-		ArgsV.push_back(arg);
-		if (ArgsV.back() == 0)
-			return 0;
-	}
+  vector<Value*> ArgsV;
+  for (unsigned i = 0, e = args.size(); i != e; ++i) {
+	Value *arg = this->Generate(args[i]);
+	ArgsV.push_back(arg);
+	if (ArgsV.back() == 0)
+	  return 0;
+  }
 
-	ArrayRef<Value*> *argArr = new ArrayRef<Value*>(ArgsV);
-	return Builder.CreateCall(CalleeF, *argArr, "tmpcall");
+  ArrayRef<Value*> *argArr = new ArrayRef<Value*>(ArgsV);
+  return Builder.CreateCall(CalleeF, *argArr, "tmpcall");
 };
 
 Value *Codegen::Generate(ConditionalExprAST *expr) {
@@ -104,44 +110,44 @@ Value *Codegen::Generate(ConditionalExprAST *expr) {
   if (condVal == 0)
 	return 0;
 
-	condVal = Builder.CreateFCmpONE(condVal, ConstantFP::get(getGlobalContext(), APFloat(0.0)), "ifcond");
+  condVal = Builder.CreateFCmpONE(condVal, ConstantFP::get(getGlobalContext(), APFloat(0.0)), "ifcond");
 
-	Function *func = Builder.GetInsertBlock()->getParent();
+  Function *func = Builder.GetInsertBlock()->getParent();
 
-	BasicBlock *thenBlock = BasicBlock::Create(getGlobalContext(), "then", func);
-	BasicBlock *elseBlock = BasicBlock::Create(getGlobalContext(), "else");
-	BasicBlock *mergeBlock = BasicBlock::Create(getGlobalContext(), "merge");
+  BasicBlock *thenBlock = BasicBlock::Create(getGlobalContext(), "then", func);
+  BasicBlock *elseBlock = BasicBlock::Create(getGlobalContext(), "else");
+  BasicBlock *mergeBlock = BasicBlock::Create(getGlobalContext(), "merge");
 
-	Builder.CreateCondBr(condVal, thenBlock, elseBlock);
+  Builder.CreateCondBr(condVal, thenBlock, elseBlock);
 
-	Builder.SetInsertPoint(thenBlock);
+  Builder.SetInsertPoint(thenBlock);
   
-	Value *thenVal = this->Generate(expr->GetThen());
-	if (thenVal == 0)
-		return 0;
+  Value *thenVal = this->Generate(expr->GetThen());
+  if (thenVal == 0)
+	return 0;
 
-	Builder.CreateBr(mergeBlock);
+  Builder.CreateBr(mergeBlock);
 
-	thenBlock = Builder.GetInsertBlock();
+  thenBlock = Builder.GetInsertBlock();
   
-	func->getBasicBlockList().push_back(elseBlock);
-	Builder.SetInsertPoint(elseBlock);
+  func->getBasicBlockList().push_back(elseBlock);
+  Builder.SetInsertPoint(elseBlock);
   
-	Value *elseVal = this->Generate(expr->GetElse());
-	if (elseVal == 0)
-		return 0;
+  Value *elseVal = this->Generate(expr->GetElse());
+  if (elseVal == 0)
+	return 0;
 
-	Builder.CreateBr(mergeBlock);
-	elseBlock = Builder.GetInsertBlock();
+  Builder.CreateBr(mergeBlock);
+  elseBlock = Builder.GetInsertBlock();
 
-	func->getBasicBlockList().push_back(mergeBlock);
-	Builder.SetInsertPoint(mergeBlock);
+  func->getBasicBlockList().push_back(mergeBlock);
+  Builder.SetInsertPoint(mergeBlock);
 
-	PHINode *phi = Builder.CreatePHI(Type::getDoubleTy(getGlobalContext()), 2, "iftmp");
-	phi->addIncoming(thenVal, thenBlock);
-	phi->addIncoming(elseVal, elseBlock);
+  PHINode *phi = Builder.CreatePHI(Type::getDoubleTy(getGlobalContext()), 2, "iftmp");
+  phi->addIncoming(thenVal, thenBlock);
+  phi->addIncoming(elseVal, elseBlock);
 
-	return phi;
+  return phi;
 };
 
 Value *Codegen::Generate(ForExprAST *expr) {
@@ -214,68 +220,105 @@ Function *Codegen::Generate(PrototypeAST *proto) {
   string Name = proto->GetName();
   vector<string> Args = proto->GetArgs();
 
-	vector<Type*> Doubles(Args.size(), Type::getDoubleTy(getGlobalContext()));
-	FunctionType *FT = FunctionType::get(Type::getDoubleTy(getGlobalContext()), Doubles, false);
-	Function* F = Function::Create(FT, Function::ExternalLinkage, Name, TheModule);
+  vector<Type*> Doubles(Args.size(), Type::getDoubleTy(getGlobalContext()));
+  FunctionType *FT = FunctionType::get(Type::getDoubleTy(getGlobalContext()), Doubles, false);
+  Function* F = Function::Create(FT, Function::ExternalLinkage, Name, TheModule);
   
 
-	if (F->getName() != Name) 
+  if (F->getName() != Name) 
 	{
-		F->eraseFromParent();
-		F = TheModule->getFunction(Name);
+	  F->eraseFromParent();
+	  F = TheModule->getFunction(Name);
 	
-		if (!F->empty()) 
+	  if (!F->empty()) 
 		{
-			ErrorF("Redefinition of function");
-			return 0;
+		  ErrorF("Redefinition of function");
+		  return 0;
 		}
 	
-		if (F->arg_size() != Args.size()) 
+	  if (F->arg_size() != Args.size()) 
 		{
-			Error("Redefinition of function with wrong number of arguments");
-			return 0;
+		  Error("Redefinition of function with wrong number of arguments");
+		  return 0;
 		}
 	}
   
-	unsigned Idx = 0;
-	for (Function::arg_iterator AI = F->arg_begin(); Idx != Args.size(); ++AI, ++Idx)
+  unsigned Idx = 0;
+  for (Function::arg_iterator AI = F->arg_begin(); Idx != Args.size(); ++AI, ++Idx)
 	{
-		AI->setName(Args[Idx]);
-		NamedValues[Args[Idx]] = AI;
+	  AI->setName(Args[Idx]);
+	  NamedValues[Args[Idx]] = AI;
 	}
 
-	return F;
+  return F;
 };
 
 
 Function *Codegen::Generate(FunctionAST *funcAst) {
-	NamedValues.clear();
+  NamedValues.clear();
 
-	Function *func = this->Generate(funcAst->GetPrototype());
-	if (func == 0)
-		return 0;
-	
-	BasicBlock *block = BasicBlock::Create(getGlobalContext(), "func", func);
-	Builder.SetInsertPoint(block);
-	
-	Value *retVal = this->Generate(funcAst->GetBody());
-	if (retVal) {
-		Builder.CreateRet(retVal);
-   		verifyFunction(*func);
-   		TheFPM->run(*func);
-		return func;
-	}
-	
-	func->eraseFromParent();
+  Function *func = this->Generate(funcAst->GetPrototype());
+  if (func == 0)
 	return 0;
+	
+  BasicBlock *block = BasicBlock::Create(getGlobalContext(), "func", func);
+  Builder.SetInsertPoint(block);
+	
+  Value *retVal = this->Generate(funcAst->GetBody());
+  if (retVal) {
+	Builder.CreateRet(retVal);
+	verifyFunction(*func);
+	TheFPM->run(*func);
+	return func;
+  }
+	
+  func->eraseFromParent();
+  return 0;
 };
 
+Function *Codegen::Generate(OperatorAST *opr) {
+  NamedValues.clear();
 
+  string Name = "userop" + opr->GetOp();
+  vector<string> Args = opr->GetArgs();
 
+  vector<Type*> Doubles(Args.size(), Type::getDoubleTy(getGlobalContext()));
+  FunctionType *FT = FunctionType::get(Type::getDoubleTy(getGlobalContext()), Doubles, false);
+  Function* F = Function::Create(FT, Function::ExternalLinkage, Name, TheModule);
+  
+  if (F->getName() != Name) {
+	F->eraseFromParent();
+	F = TheModule->getFunction(Name);
+	
+	if (!F->empty()) {
+	  ErrorF("Redefinition of operator");
+	  return 0;
+	}
+	
+	if (F->arg_size() != Args.size()) {
+	  Error("Redefinition of operator with wrong number of arguments");
+	  return 0;
+	}
+  }
+  
+  unsigned Idx = 0;
+  for (Function::arg_iterator AI = F->arg_begin(); Idx != Args.size(); ++AI, ++Idx) {
+	AI->setName(Args[Idx]);
+	NamedValues[Args[Idx]] = AI;
+  }
+  
+  // add the body 
+  BasicBlock *block = BasicBlock::Create(getGlobalContext(), "opfunc", F);
+  Builder.SetInsertPoint(block);
 
-
-
-
-
-
-
+  Value *retVal = this->Generate(opr->GetBody());
+  if (retVal) {
+	Builder.CreateRet(retVal);
+	verifyFunction(*F);
+	TheFPM->run(*F);
+	return F;
+  }
+	
+  F->eraseFromParent();
+  return 0;
+};

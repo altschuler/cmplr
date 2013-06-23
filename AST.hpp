@@ -1,3 +1,4 @@
+
 #include "llvm/DerivedTypes.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
@@ -18,6 +19,7 @@ enum ASTType {
   ASTNumberExpr, ASTVariableExpr, ASTBinaryExpr, ASTCallExpr, 
   ASTConditionalExpr, ASTForExpr,
   ASTPrototype, ASTFunction,
+  ASTOperator,
 };
 
 class ExprAST {
@@ -126,4 +128,32 @@ public:
 
   virtual ASTType GetASTType() { return ASTFunction; }
 };
+
+// Operator definition
+class OperatorAST {
+  char Op;
+  int Precedence;
+  vector<string> Args;
+  ExprAST *Body;
+public:
+  OperatorAST(char op, int prec, vector<string> args, ExprAST *body) 
+	: Op(op), Precedence(prec), Args(args), Body(body) {}
+
+  char GetOp() { return this->Op; };
+  int GetPrecedence() { return this->Precedence; };
+  vector<string> GetArgs() { return this->Args; };
+  ExprAST *GetBody() { return this->Body; };
+
+  virtual ASTType GetASTType() { return ASTOperator; }
+};
 #endif
+
+
+
+
+
+
+
+
+
+

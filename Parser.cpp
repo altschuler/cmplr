@@ -236,7 +236,7 @@ PrototypeAST *Parser::ParsePrototype() {
 }
 
 FunctionAST *Parser::ParseDefinition() {
-  this->GetNextToken(); // eat "def"
+  this->GetNextToken(); // eat 'def'
   PrototypeAST *prototype = this->ParsePrototype();
   if (prototype == 0)
 	return 0;
@@ -246,6 +246,52 @@ FunctionAST *Parser::ParseDefinition() {
 	return new FunctionAST(prototype, body);
   
   return 0;  
+}
+
+OperatorAST *Parser::ParseOperator() {
+  // eat 'op'
+  this->GetNextToken(); 
+  
+  // save the operator and precedence
+  char op = CurTok;
+  // eat operator
+  this->GetNextToken();
+
+  if (CurTok != tok_number)
+	return ErrorO("Expected precedence after operator");
+
+  int prec = TheLexer.GetNumVal();
+  // eat precendence
+  this->GetNextToken();
+
+  if (CurTok != '(') 
+	return ErrorO("Expected '(' after operator precedence");
+
+  // eat '('
+  this->GetNextToken();
+
+  vector<string> args;
+  while (CurTok == tok_identifier) {
+	args.push_back(TheLexer.GetIdentifierStr());
+	this->GetNextToken();
+  }
+
+  if (args.size() > 2 || args.size() < 1) {
+	return ErrorO("Wrong number of arguments for operator definition, 1 or 2 expected");
+  }
+
+  if (CurTok != ')') 
+	return ErrorO("Expected ')' after operator arguments");
+
+  // eat ')'
+  this->GetNextToken();
+
+  ExprAST* body = this->ParseExpression();
+
+  // install precedence
+  BinopPrecedence[op] = prec;
+
+  return new OperatorAST(op, prec, args, body);
 }
 
 PrototypeAST *Parser::ParseExtern() {

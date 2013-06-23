@@ -28,6 +28,7 @@ public:
   ExprAST *ParseFor();
   PrototypeAST *ParsePrototype();
   FunctionAST *ParseDefinition();
+  OperatorAST *ParseOperator();
   PrototypeAST *ParseExtern();
   FunctionAST *ParseTopLevelExpr();
 

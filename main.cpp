@@ -36,6 +36,16 @@ static void HandleDefinition() {
 	TheParser.GetNextToken();
 }
 
+static void HandleOperator() {
+  OperatorAST *func = TheParser.ParseOperator();
+  Function *code = Gen->Generate(func);
+  if (func && code) {
+	  fprintf(stderr, "Operator '%c' defined.\n", func->GetOp());
+  }
+  else
+	TheParser.GetNextToken();
+}
+
 static void HandleExtern() {
   PrototypeAST *ext = TheParser.ParseExtern();
   Function *code = Gen->Generate(ext);
@@ -71,6 +81,10 @@ static void MainLoop() {
 	case tok_extern: 
 	  fprintf(stderr, "= ");
 	  HandleExtern(); 
+	  break;
+	case tok_op: 
+	  fprintf(stderr, "= ");
+	  HandleOperator(); 
 	  break;
 	case ';': 
 	  fprintf(stderr, ">");

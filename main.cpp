@@ -1,114 +1,24 @@
-#include "llvm/ExecutionEngine/ExecutionEngine.h"
-#include "llvm/ExecutionEngine/JIT.h"
-#include "llvm/Support/TargetSelect.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Module.h"
-
-#include "boost/format.hpp"
-
-#include "Parser.hpp"
-#include "Errors.hpp"
-#include "Codegen.hpp"
-
 #include <cstdio>
 #include <cstdlib>
 #include <string>
 #include <vector>
 #include <map>
 
-using namespace std;
-using namespace llvm;
+#include "Driver.hpp"
 
-// Top level handling
-//-------
+//extern "C" string
+//double putchard(double X) {
+//  putchar((char)X);
+//  return 0;
+//}
 
-static Parser TheParser;
-static Codegen *Gen;
+static Driver *driver;
 
-static void HandleDefinition() {
-  FunctionAST *func = TheParser.ParseDefinition();
-  Function *code = Gen->Generate(func);
-  if (func && code) 
-	{
-	  fprintf(stderr, "Function '%s' defined.\n", func->GetPrototype()->GetName().c_str());
-	}
-  else
-	TheParser.GetNextToken();
-}
-
-static void HandleOperator() {
-  OperatorAST *func = TheParser.ParseOperator();
-  Function *code = Gen->Generate(func);
-  if (func && code) {
-	  fprintf(stderr, "Operator '%c' defined.\n", func->GetOp());
-  }
-  else
-	TheParser.GetNextToken();
-}
-
-static void HandleExtern() {
-  PrototypeAST *ext = TheParser.ParseExtern();
-  Function *code = Gen->Generate(ext);
-  if (ext && code) 
-	{
-	  fprintf(stderr, "Extern '%s' defined.\n", ext->GetName().c_str());
-	}
-  else
-	TheParser.GetNextToken();
-}
-
-static void HandleTopLevelExpr() {
-  FunctionAST *expr = TheParser.ParseTopLevelExpr();
-  Function *code = Gen->Generate(expr);
-  if (expr && code) {
-	void *funcPtr = Gen->GetExecEngine()->getPointerToFunction(code);
-
-	double (*fptr)() = (double (*)())(intptr_t)funcPtr;
-	fprintf(stderr, "%f\n", fptr());
-  }
-  else
-	TheParser.GetNextToken();
-}
-
-static void MainLoop() {
-  while(1) {
-	switch(TheParser.GetCurTok()) {
-	case tok_eof: return;
-	case tok_def: 	  
-	  fprintf(stderr, "= ");
-	  HandleDefinition(); 
-	  break;
-	case tok_extern: 
-	  fprintf(stderr, "= ");
-	  HandleExtern(); 
-	  break;
-	case tok_op: 
-	  fprintf(stderr, "= ");
-	  HandleOperator(); 
-	  break;
-	case ';': 
-	  fprintf(stderr, ">");
-	  TheParser.GetNextToken(); 
-	  break; // eat ;
-	default: 
-	  fprintf(stderr, "= ");
-	  HandleTopLevelExpr(); 
-	  break;
-	}
-  }
-}
-
-extern "C" 
-double print(double X) {
-  putchar((char)X);
-  return 0;
-}
-
-int main() {
+int main(int argc, const char *argv[]) {	
   InitializeNativeTarget();
-
+  
   LLVMContext &Context = getGlobalContext();
-  Module *module = new Module("JIT", Context);
+  Module *module = new Module("WTFJIT", Context);
 
   string ErrStr;
   ExecutionEngine *execEngine = EngineBuilder(module).setErrorStr(&ErrStr).create();
@@ -116,13 +26,11 @@ int main() {
 	fprintf(stderr, "Could not create ExecutionEngine: %s\n", ErrStr.c_str());
 	exit(1);
   }
+  
+  driver = new Driver(new Codegen(execEngine, module));
 
-  Gen = new Codegen(execEngine, module);
-
-  fprintf(stderr, ">");
-  TheParser.GetNextToken();
-	  
-  MainLoop();
+  string inputFile(argv[1]);
+  driver->Go(inputFile);
 
   return 0;
 }

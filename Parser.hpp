@@ -14,10 +14,14 @@ class Parser {
   map<char, int> BinopPrecedence;
   Lexer TheLexer;
   int CurTok;
+
 public:
   Parser();
   int GetCurTok();
   int GetNextToken();
+
+  void SetInputFile(string file);
+
   ExprAST *ParseNumberExpr();
   ExprAST *ParseExpression();
   ExprAST *ParseParenExpr();

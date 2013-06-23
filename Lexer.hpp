@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <fstream>
 
 using namespace std;
 
@@ -14,13 +15,21 @@ enum Token {
 };
 
 class Lexer {
+  string File;
+  ifstream InputFileStream;
   string IdentifierStr;
   double NumVal;
 
 public:
   Lexer() : IdentifierStr(""), NumVal(0.0) {}
+
+  void SetInputFile(string file);
+
   int GetToken();
 
   string GetIdentifierStr() { return IdentifierStr; }
   double GetNumVal()  { return NumVal; }
+
+private:
+  int GetNextChar();
 };

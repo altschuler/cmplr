@@ -16,6 +16,11 @@ Parser::Parser() {
 	BinopPrecedence['+'] = 20;
 	BinopPrecedence['-'] = 20;
 	BinopPrecedence['*'] = 40;
+	BinopPrecedence['/'] = 40;
+}
+
+void Parser::SetInputFile(string file) {
+	TheLexer.SetInputFile(file);
 }
 
 int Parser::GetNextToken() {

@@ -63,6 +63,7 @@ Value *Codegen::Generate(BinaryExprAST *expr) {
   case '+': return Builder.CreateFAdd(L, R, "addtmp");
   case '-': return Builder.CreateFSub(L, R, "subtmp");
   case '*': return Builder.CreateFMul(L, R, "multmp");
+  case '/': return Builder.CreateFDiv(L, R, "divtmp");
   case '<': 
 	L = Builder.CreateFCmpULT(L, R, "cmptmp");
 	return Builder.CreateUIToFP(L, Type::getDoubleTy(getGlobalContext()), "booltmp");

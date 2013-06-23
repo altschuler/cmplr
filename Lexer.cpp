@@ -8,16 +8,24 @@
 
 using namespace std;
 
+void Lexer::SetInputFile(string file) {
+  InputFileStream.open(file);
+}
+
+int Lexer::GetNextChar() {
+  return InputFileStream.get();
+}
+
 int Lexer::GetToken() {
   static int LastChar = ' ';
   
   while (isspace(LastChar))
-	LastChar = getchar();
+	LastChar = this->GetNextChar();
 
   // check identifier
   if (isalpha(LastChar)) {
 	IdentifierStr = LastChar;
-	while (isalnum(LastChar = getchar())) 
+	while (isalnum(LastChar = this->GetNextChar())) 
 	  IdentifierStr += LastChar;
 
 	if (IdentifierStr == "def") return tok_def;
@@ -37,7 +45,7 @@ int Lexer::GetToken() {
 	string NumStr;
 	do {
 	  NumStr += LastChar;
-	  LastChar = getchar();
+	  LastChar = this->GetNextChar();
 	} while (isdigit(LastChar) || LastChar == '.');
 
    	this->NumVal = strtod(NumStr.c_str(), 0);
@@ -46,7 +54,7 @@ int Lexer::GetToken() {
 
   // check for comment
   if (LastChar == '#') {
-	do LastChar = getchar();
+	do LastChar = this->GetNextChar();
 	while (LastChar != '\n' && LastChar != EOF);
 
 	if (LastChar != EOF)
@@ -57,7 +65,7 @@ int Lexer::GetToken() {
 	return tok_eof;
 
   int ThisChar = LastChar;
-  LastChar = getchar();
+  LastChar = this->GetNextChar();
   return ThisChar;
 }
 #endif

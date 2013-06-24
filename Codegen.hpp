@@ -38,6 +38,7 @@ public:
   Value *Generate(NumberExprAST *expr);
   Value *Generate(VariableExprAST *expr);
   Value *Generate(BinaryExprAST *expr);
+  Value *Generate(UnaryExprAST *expr);
   Value *Generate(CallExprAST *expr);
   Value *Generate(ConditionalExprAST *expr);
   Value *Generate(ForExprAST *expr);
@@ -48,3 +49,13 @@ public:
 };
 
 #endif
+
+
+
+
+
+
+
+
+
+

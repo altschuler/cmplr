@@ -26,6 +26,7 @@ public:
   ExprAST *ParseExpression();
   ExprAST *ParseParenExpr();
   ExprAST *ParseIdentifierExpr();
+  ExprAST *ParseUnary();
   ExprAST *ParsePrimary();
   ExprAST *ParseBinOpRHS(int exprPrec, ExprAST* lhs);
   ExprAST *ParseConditional();

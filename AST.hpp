@@ -19,7 +19,7 @@ enum ASTType {
   ASTNumberExpr, ASTVariableExpr, ASTBinaryExpr, ASTCallExpr, 
   ASTConditionalExpr, ASTForExpr,
   ASTPrototype, ASTFunction,
-  ASTOperator,
+  ASTOperator, ASTUnary,
 };
 
 class ExprAST {
@@ -129,6 +129,18 @@ public:
   virtual ASTType GetASTType() { return ASTFunction; }
 };
 
+class UnaryExprAST : public ExprAST {
+  char Op;
+  ExprAST *Operand;
+public:
+  UnaryExprAST(char op, ExprAST *operand) : Op(op), Operand(operand) {}
+
+  char GetOp() { return this->Op; }
+  ExprAST *GetOperand() { return this->Operand; }
+
+  virtual ASTType GetASTType() { return ASTUnary; }
+};
+
 // Operator definition
 class OperatorAST {
   char Op;
@@ -143,6 +155,8 @@ public:
   int GetPrecedence() { return this->Precedence; };
   vector<string> GetArgs() { return this->Args; };
   ExprAST *GetBody() { return this->Body; };
+  
+  bool IsBinary() { return this->Args.size() == 2; };
 
   virtual ASTType GetASTType() { return ASTOperator; }
 };

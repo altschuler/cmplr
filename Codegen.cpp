@@ -27,9 +27,10 @@ Value *Codegen::Generate(ExprAST *expr) {
   case ASTBinaryExpr: return this->Generate((BinaryExprAST *)expr); break;
   case ASTCallExpr: return this->Generate((CallExprAST *)expr); break;
   case ASTConditionalExpr: return this->Generate((ConditionalExprAST *)expr); break;
+  case ASTForExpr: return this->Generate((ForExprAST *)expr); break;
+  case ASTUnary: return this->Generate((UnaryExprAST *)expr); break;
   case ASTPrototype: return this->Generate((PrototypeAST *)expr); break;
   case ASTFunction: return this->Generate((FunctionAST *)expr); break;
-  case ASTForExpr: return this->Generate((ForExprAST *)expr); break;
   case ASTOperator: return this->Generate((OperatorAST *)expr); break;
   }
 }
@@ -277,10 +278,23 @@ Function *Codegen::Generate(FunctionAST *funcAst) {
   return 0;
 };
 
+Value *Codegen::Generate(UnaryExprAST *expr) {
+  ExprAST *code = expr->GetOperand();
+  Value *val = this->Generate(code);
+  if(!val)
+	return 0;
+
+  Function *func = TheModule->getFunction("unary" + expr->GetOp());
+  if (func == 0)
+	return ErrorV("Unknown unary operator");
+
+  return Builder.CreateCall(func, val, "unaryop");
+}
+
 Function *Codegen::Generate(OperatorAST *opr) {
   NamedValues.clear();
 
-  string Name = "userop" + opr->GetOp();
+  string Name = (opr->IsBinary() ? "binary" : "unary") + opr->GetOp();
   vector<string> Args = opr->GetArgs();
 
   vector<Type*> Doubles(Args.size(), Type::getDoubleTy(getGlobalContext()));

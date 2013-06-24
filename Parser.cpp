@@ -94,17 +94,6 @@ ExprAST *Parser::ParseIdentifierExpr() {
   return new CallExprAST(IdName, Args);
 }
 
-ExprAST *Parser::ParsePrimary() {
-  switch (CurTok) {
-  case tok_identifier: return this->ParseIdentifierExpr();
-  case tok_number: return this->ParseNumberExpr();
-  case tok_if: return this->ParseConditional();
-  case tok_for: return this->ParseFor();
-  case '(': return this->ParseParenExpr();
-  default: return Error("Expected expression");
-  }
-}
-
 ExprAST *Parser::ParseConditional() {
   this->GetNextToken(); // eat if
   
@@ -175,8 +164,34 @@ ExprAST *Parser::ParseFor() {
   return new ForExprAST(iterName, init, step, end, body);
 }
 
+ExprAST *Parser::ParseUnary() {
+  if (!isascii(CurTok) || CurTok == '(')
+	return this->ParsePrimary();
+  
+  // save the operator
+  int op = CurTok;
+  this->GetNextToken();
+  ExprAST *operand = this->ParseUnary();
+
+  if (operand)
+	return new UnaryExprAST(op, operand);
+
+  return 0;
+}
+
+ExprAST *Parser::ParsePrimary() {
+  switch (CurTok) {
+  case tok_identifier: return this->ParseIdentifierExpr();
+  case tok_number: return this->ParseNumberExpr();
+  case tok_if: return this->ParseConditional();
+  case tok_for: return this->ParseFor();
+  case '(': return this->ParseParenExpr();
+  default: return Error("Expected expression");
+  }
+}
+
 ExprAST *Parser::ParseExpression() {
-  ExprAST *LHS = this->ParsePrimary();
+  ExprAST *LHS = this->ParseUnary();
   if (!LHS)
 	return 0;
 
@@ -197,7 +212,7 @@ ExprAST *Parser::ParseBinOpRHS(int exprPrec, ExprAST* lhs) {
 
 	// eat the current operator and parse the rhs
 	this->GetNextToken(); // eat the operator	
-	ExprAST *rhs = this->ParsePrimary();
+	ExprAST *rhs = this->ParseUnary();
 	if (!rhs)
 	  return 0;
 	

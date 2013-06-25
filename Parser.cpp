@@ -5,6 +5,8 @@
 #include "Parser.hpp"
 #include "Errors.hpp"
 
+#include <iostream>
+
 #ifndef PARSER_CPP
 #define PARSER_CPP
 
@@ -19,8 +21,8 @@ Parser::Parser() {
 	BinopPrecedence['/'] = 40;
 }
 
-void Parser::SetInputFile(string file) {
-	TheLexer.SetInputFile(file);
+void Parser::SetInputFile(string file, int initialSeek) {
+  TheLexer.SetInputFile(file, initialSeek);
 }
 
 int Parser::GetNextToken() {
@@ -165,7 +167,7 @@ ExprAST *Parser::ParseFor() {
 }
 
 ExprAST *Parser::ParseUnary() {
-  if (!isascii(CurTok) || CurTok == '(')
+  if (!isascii(CurTok) || CurTok == '(' || CurTok == ',')
 	return this->ParsePrimary();
   
   // save the operator
@@ -328,4 +330,18 @@ FunctionAST *Parser::ParseTopLevelExpr() {
   }
   return 0;
 }
+
+ImportAST *Parser::ParseImport() {
+  if (CurTok != tok_import)
+	return ErrorI("Expected import statement");
+
+  // eat 'import'
+  this->GetNextToken();
+
+  if (CurTok != tok_string)
+	return ErrorI("Expected file name after import");
+  
+  return new ImportAST(TheLexer.GetStringVal(), TheLexer.GetCursorPosition());
+}
+
 #endif

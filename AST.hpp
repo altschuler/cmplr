@@ -22,6 +22,14 @@ enum ASTType {
   ASTOperator, ASTUnary,
 };
 
+struct ImportAST {
+  string FileName;
+  int ParentCursorPosition;
+
+public:
+  ImportAST(string fileName, int pcp) : FileName(fileName), ParentCursorPosition(pcp) {}
+};
+
 class ExprAST {
 public:
   virtual ~ExprAST() {};

@@ -8,17 +8,19 @@
 
 using namespace std;
 
-void Lexer::SetInputFile(string file) {
+void Lexer::SetInputFile(string file, int initialSeek) {
+  File = file;
   InputFileStream.open(file);
+  CursorPosition = initialSeek;
+  InputFileStream.seekg(CursorPosition);
 }
 
 int Lexer::GetNextChar() {
+  CursorPosition++;
   return InputFileStream.get();
 }
 
 int Lexer::GetToken() {
-  static int LastChar = ' ';
-  
   while (isspace(LastChar))
 	LastChar = this->GetNextChar();
 
@@ -36,6 +38,7 @@ int Lexer::GetToken() {
 	if (IdentifierStr == "for") return tok_for;
 	if (IdentifierStr == "in") return tok_in;
 	if (IdentifierStr == "op") return tok_op;
+	if (IdentifierStr == "import") return tok_import;
 
 	return tok_identifier;
   }
@@ -60,7 +63,23 @@ int Lexer::GetToken() {
 	if (LastChar != EOF)
 	  return GetToken();
   }
+  
+  // parse string
+  if (LastChar == '\'') {
+	// eat '{'
+    LastChar = this->GetNextChar();
 
+	while (LastChar != '\'') {
+	  StringVal += LastChar;
+	  LastChar = this->GetNextChar();
+	}
+	
+	// eat '}'
+	LastChar = this->GetNextChar();
+
+	return tok_string;
+  }
+  
   if (LastChar == EOF)
 	return tok_eof;
 

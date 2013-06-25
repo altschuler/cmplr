@@ -21,6 +21,7 @@ using namespace llvm;
 class Driver {
   Parser TheParser;
   Codegen *Gen;
+  string CurrentFile;
 
 public:
   Driver(Codegen *codegen) : Gen(codegen) {}
@@ -31,6 +32,7 @@ private:
   void HandleOperator();
   void HandleExtern();
   void HandleTopLevelExpr();
+  void HandleImport();
 };
 
 #endif

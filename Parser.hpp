@@ -20,7 +20,7 @@ public:
   int GetCurTok();
   int GetNextToken();
 
-  void SetInputFile(string file);
+  void SetInputFile(string file, int initialSeek);
 
   ExprAST *ParseNumberExpr();
   ExprAST *ParseExpression();
@@ -31,13 +31,15 @@ public:
   ExprAST *ParseBinOpRHS(int exprPrec, ExprAST* lhs);
   ExprAST *ParseConditional();
   ExprAST *ParseFor();
+
   PrototypeAST *ParsePrototype();
   FunctionAST *ParseDefinition();
   OperatorAST *ParseOperator();
   PrototypeAST *ParseExtern();
   FunctionAST *ParseTopLevelExpr();
 
-
+  ImportAST *ParseImport();
+  
 private:
   int GetTokPrecedence();
 };

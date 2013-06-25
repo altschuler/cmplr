@@ -15,13 +15,3 @@ double pline() {
   cout << '\n';
   return 0;
 }
-
-extern "C"
-double plines(double lines) {
-  int n = (int)lines;
-
-  while (lines-- > 0) 
-	cout << '\n';
-
-  return 0;
-}

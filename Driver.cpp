@@ -37,7 +37,7 @@ void Driver::HandleTopLevelExpr() {
 	void *funcPtr = Gen->GetExecEngine()->getPointerToFunction(code);
 
 	double (*fptr)() = (double (*)())(intptr_t)funcPtr;
-	cout << fptr() << endl;
+	fptr();
   }
   else
 	TheParser.GetNextToken();

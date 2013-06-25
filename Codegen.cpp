@@ -71,9 +71,9 @@ Value *Codegen::Generate(BinaryExprAST *expr) {
   default: break;
   }
 
-  Function *opFunc = TheModule->getFunction("userop" + expr->GetOp());
+  Function *opFunc = TheModule->getFunction("binary" + expr->GetOp());
   if (!opFunc) 
-	return ErrorV(str(format("Unknown operator '%1%'") % expr->GetOp()).c_str());
+	return ErrorV(str(format("Unknown binary operator '%1%'") % expr->GetOp()).c_str());
 
   Value *args[2] = {L, R};
   return Builder.CreateCall(opFunc, args, "binop");

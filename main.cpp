@@ -3,18 +3,14 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <iostream>
 
 #include "Driver.hpp"
-
-//extern "C" string
-//double putchard(double X) {
-//  putchar((char)X);
-//  return 0;
-//}
+#include "BuiltIns.hpp"
 
 static Driver *driver;
 
-int main(int argc, const char *argv[]) {	
+int main(int argc, const char *argv[]) {
   InitializeNativeTarget();
   
   LLVMContext &Context = getGlobalContext();
@@ -30,7 +26,11 @@ int main(int argc, const char *argv[]) {
   driver = new Driver(new Codegen(execEngine, module));
 
   string inputFile(argv[1]);
+  
   driver->Go(inputFile);
+  
+  // hax to flush cout
+  pline();
 
   return 0;
 }

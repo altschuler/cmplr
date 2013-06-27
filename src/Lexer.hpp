@@ -14,6 +14,7 @@ enum Token {
   tok_op = -11,
   tok_import = -12,
   tok_string = -13,
+  tok_end = -14,
 };
 
 class Lexer {

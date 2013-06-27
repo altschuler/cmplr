@@ -1,4 +1,3 @@
-
 #include "llvm/DerivedTypes.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
@@ -20,6 +19,7 @@ enum ASTType {
   ASTConditionalExpr, ASTForExpr,
   ASTPrototype, ASTFunction,
   ASTOperator, ASTUnary,
+  ASTBlock,
 };
 
 struct ImportAST {
@@ -34,6 +34,22 @@ class ExprAST {
 public:
   virtual ~ExprAST() {};
   virtual ASTType GetASTType() = 0;
+};
+
+// list of expressions form a block
+class BlockAST {
+  vector<ExprAST*> Expressions;
+
+public:
+  // TODO kill this constructor
+  BlockAST(int test) {}
+  BlockAST(ExprAST *expr);
+
+  void AppendExpression(ExprAST *expr);
+  
+  vector<ExprAST*> GetExpressions() { return this->Expressions; }
+
+  virtual ASTType GetASTType() { return ASTBlock; }
 };
 
 // Numeric literals
@@ -84,16 +100,17 @@ public:
 
 class ForExprAST : public ExprAST {
   string IterName;
-  ExprAST *Init, *Step, *End, *Body;
+  ExprAST *Init, *Step, *End;
+  BlockAST *Body;
 public:
-  ForExprAST(string iterName, ExprAST *init, ExprAST *step, ExprAST *end, ExprAST *body)
+  ForExprAST(string iterName, ExprAST *init, ExprAST *step, ExprAST *end, BlockAST *body)
 	: IterName(iterName), Init(init), Step(step), End(end), Body(body) {}
 
   string GetIterName() { return this->IterName; }
   ExprAST *GetInit() { return this->Init; }
   ExprAST *GetStep() { return this->Step; }
   ExprAST *GetEnd() { return this->End; }
-  ExprAST *GetBody() { return this->Body; }
+  BlockAST *GetBody() { return this->Body; }
 
   virtual ASTType GetASTType() { return ASTForExpr; }  
 };
@@ -127,12 +144,12 @@ public:
 // Function definition
 class FunctionAST {
   PrototypeAST *Prototype;
-  ExprAST *Body;
+  BlockAST *Body;
 public:
-  FunctionAST(PrototypeAST *prototype, ExprAST *body) : Prototype(prototype), Body(body) {}
+  FunctionAST(PrototypeAST *prototype, BlockAST *body) : Prototype(prototype), Body(body) {}
 
   PrototypeAST *GetPrototype() { return this->Prototype; };
-  ExprAST *GetBody() { return this->Body; };
+  BlockAST *GetBody() { return this->Body; };
 
   virtual ASTType GetASTType() { return ASTFunction; }
 };
@@ -154,28 +171,19 @@ class OperatorAST {
   char Op;
   int Precedence;
   vector<string> Args;
-  ExprAST *Body;
+  BlockAST *Body;
 public:
-  OperatorAST(char op, int prec, vector<string> args, ExprAST *body) 
+  OperatorAST(char op, int prec, vector<string> args, BlockAST *body) 
 	: Op(op), Precedence(prec), Args(args), Body(body) {}
 
   char GetOp() { return this->Op; };
   int GetPrecedence() { return this->Precedence; };
   vector<string> GetArgs() { return this->Args; };
-  ExprAST *GetBody() { return this->Body; };
+  BlockAST *GetBody() { return this->Body; };
   
   bool IsBinary() { return this->Args.size() == 2; };
 
   virtual ASTType GetASTType() { return ASTOperator; }
 };
+
 #endif
-
-
-
-
-
-
-
-
-
-

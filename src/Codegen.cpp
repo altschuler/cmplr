@@ -32,6 +32,7 @@ Value *Codegen::Generate(ExprAST *expr) {
   case ASTPrototype: return this->Generate((PrototypeAST *)expr); break;
   case ASTFunction: return this->Generate((FunctionAST *)expr); break;
   case ASTOperator: return this->Generate((OperatorAST *)expr); break;
+  case ASTBlock: return 0;
   }
 }
 
@@ -122,19 +123,18 @@ Value *Codegen::Generate(ConditionalExprAST *expr) {
 
   Builder.CreateCondBr(condVal, thenBlock, elseBlock);
 
+  // THEN body
   Builder.SetInsertPoint(thenBlock);
-  
   Value *thenVal = this->Generate(expr->GetThen());
   if (thenVal == 0)
 	return 0;
 
   Builder.CreateBr(mergeBlock);
-
   thenBlock = Builder.GetInsertBlock();
-  
   func->getBasicBlockList().push_back(elseBlock);
+
+  // ELSE body
   Builder.SetInsertPoint(elseBlock);
-  
   Value *elseVal = this->Generate(expr->GetElse());
   if (elseVal == 0)
 	return 0;
@@ -195,6 +195,7 @@ Value *Codegen::Generate(ForExprAST *expr) {
   Value *endCond = this->Generate(expr->GetEnd());
   if (endCond == 0)
 	return 0;
+
   // booleanize end condition
   endCond = Builder.CreateFCmpONE(endCond, ConstantFP::get(getGlobalContext(), APFloat(0.0)), "loopcond");
 
@@ -263,10 +264,12 @@ Function *Codegen::Generate(FunctionAST *funcAst) {
   if (func == 0)
 	return 0;
 	
-  BasicBlock *block = BasicBlock::Create(getGlobalContext(), "func", func);
+  BasicBlock *block = BasicBlock::Create(getGlobalContext(), "entry", func);
   Builder.SetInsertPoint(block);
-	
+
+  // iterate and codegen all expressions in body  
   Value *retVal = this->Generate(funcAst->GetBody());
+
   if (retVal) {
 	Builder.CreateRet(retVal);
 	verifyFunction(*func);
@@ -277,6 +280,21 @@ Function *Codegen::Generate(FunctionAST *funcAst) {
   func->eraseFromParent();
   return 0;
 };
+
+Value *Codegen::Generate(BlockAST *block) {
+  vector<ExprAST*> exprs = block->GetExpressions();
+  int size = exprs.size();
+  for (int i = 0; i < size; ++i) {
+	ExprAST *curr = exprs[i];
+	Value *val = this->Generate(curr);
+
+	// create return value if last expression
+	if (i == size - 1)
+	  return val;
+  }  
+  
+  return 0;
+}
 
 Value *Codegen::Generate(UnaryExprAST *expr) {
   ExprAST *code = expr->GetOperand();

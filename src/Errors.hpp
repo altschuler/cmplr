@@ -11,6 +11,8 @@ FunctionAST *ErrorF(const char *Str);
 OperatorAST *ErrorO(const char *Str);
 Value *ErrorV(const char *Str);
 ImportAST *ErrorI(const char *Str);
+BlockAST *ErrorB(const char *Str);
+
 const char *formatErr(string msg, string arg);
 
 #endif

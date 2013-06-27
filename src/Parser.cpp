@@ -1,11 +1,4 @@
-#include "llvm/DerivedTypes.h"
-#include <cstdio>
-#include <cstdlib>
-
 #include "Parser.hpp"
-#include "Errors.hpp"
-
-#include <iostream>
 
 #ifndef PARSER_CPP
 #define PARSER_CPP
@@ -45,9 +38,7 @@ int Parser::GetTokPrecedence() {
 }
 
 
-//--------------------
 // Expression parsing
-//--------------------
 
 ExprAST *Parser::ParseNumberExpr() {
   ExprAST *Result = new NumberExprAST(TheLexer.GetNumVal());
@@ -161,7 +152,7 @@ ExprAST *Parser::ParseFor() {
   // eat 'in'
   this->GetNextToken();
 
-  ExprAST *body = this->ParseExpression();
+  BlockAST *body = this->ParseBlock();
 
   return new ForExprAST(iterName, init, step, end, body);
 }
@@ -188,7 +179,7 @@ ExprAST *Parser::ParsePrimary() {
   case tok_if: return this->ParseConditional();
   case tok_for: return this->ParseFor();
   case '(': return this->ParseParenExpr();
-  default: return Error("Expected expression");
+  default: return Error(boost::str(boost::format("Expected expression, token: %1%") % CurTok).c_str());
   }
 }
 
@@ -263,11 +254,30 @@ FunctionAST *Parser::ParseDefinition() {
   if (prototype == 0)
 	return 0;
 
-  ExprAST *body = this->ParseExpression();
-  if (body != 0)
-	return new FunctionAST(prototype, body);
+  BlockAST *body = this->ParseBlock();
+
+  return new FunctionAST(prototype, body);
+}
+
+BlockAST *Parser::ParseBlock() {
+  BlockAST *block = new BlockAST(123);
   
-  return 0;  
+  while (CurTok != tok_end) {
+	block->AppendExpression(this->ParseExpression());
+	//	if (CurTok != ';')
+	//	  return ErrorB("Expected ';' after expression");
+
+	// eat ';'
+	this->GetNextToken();
+  }
+
+  if (CurTok != tok_end)
+	return ErrorB("Expected 'end' after block");
+
+  // eat 'end'
+  this->GetNextToken();
+  
+  return block;
 }
 
 OperatorAST *Parser::ParseOperator() {
@@ -308,7 +318,7 @@ OperatorAST *Parser::ParseOperator() {
   // eat ')'
   this->GetNextToken();
 
-  ExprAST* body = this->ParseExpression();
+  BlockAST* body = this->ParseBlock();
 
   // install precedence
   BinopPrecedence[op] = prec;
@@ -321,12 +331,14 @@ PrototypeAST *Parser::ParseExtern() {
   return this->ParsePrototype();
 }
 
-  // Top level expressions
+// Top level expressions
 FunctionAST *Parser::ParseTopLevelExpr() {
   if (ExprAST *expr = this->ParseExpression()) {
 	vector<string> args;
 	PrototypeAST *prototype = new PrototypeAST("", args);
-	return new FunctionAST(prototype, expr);
+	// wrap the expression in a block
+	BlockAST *block = new BlockAST(expr);
+	return new FunctionAST(prototype, block);
   }
   return 0;
 }

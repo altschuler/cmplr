@@ -42,6 +42,7 @@ public:
   Value *Generate(CallExprAST *expr);
   Value *Generate(ConditionalExprAST *expr);
   Value *Generate(ForExprAST *expr);
+  Value *Generate(BlockAST *block);
 
   Function *Generate(OperatorAST *expr);
   Function *Generate(PrototypeAST *proto);

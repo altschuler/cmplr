@@ -1,11 +1,17 @@
+#include "llvm/DerivedTypes.h"
+
 #include <cstdio>
 #include <cstdlib>
 #include <string>
 #include <vector>
 #include <map>
+#include <iostream>
 
 #include "Lexer.hpp"
+#include "Errors.hpp"
 #include "AST.hpp"
+
+#include "boost/format.hpp"
 
 #ifndef PARSER_HPP
 #define PARSER_HPP
@@ -32,6 +38,7 @@ public:
   ExprAST *ParseConditional();
   ExprAST *ParseFor();
 
+  BlockAST *ParseBlock();
   PrototypeAST *ParsePrototype();
   FunctionAST *ParseDefinition();
   OperatorAST *ParseOperator();

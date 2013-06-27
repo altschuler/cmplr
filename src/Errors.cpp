@@ -36,6 +36,11 @@ ImportAST *ErrorI(const char *Str) {
   return 0;
 }
 
+BlockAST *ErrorB(const char *Str) {
+  Error(Str);
+  return 0;
+}
+
 const char *formatErr(string msg, string arg) {
   using namespace boost;
 

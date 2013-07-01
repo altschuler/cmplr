@@ -49,7 +49,7 @@ public:
   
   vector<ExprAST*> GetExpressions() { return this->Expressions; }
 
-  virtual ASTType GetASTType() { return ASTBlock; }
+  ASTType GetASTType() { return ASTBlock; }
 };
 
 // Numeric literals
@@ -138,7 +138,7 @@ public:
   string GetName() { return this->Name; };
   vector<string> GetArgs() { return this->Args; };
 
-  virtual ASTType GetASTType() { return ASTPrototype; }
+  ASTType GetASTType() { return ASTPrototype; }
 };
 
 // Function definition
@@ -151,7 +151,7 @@ public:
   PrototypeAST *GetPrototype() { return this->Prototype; };
   BlockAST *GetBody() { return this->Body; };
 
-  virtual ASTType GetASTType() { return ASTFunction; }
+  ASTType GetASTType() { return ASTFunction; }
 };
 
 class UnaryExprAST : public ExprAST {
@@ -163,7 +163,7 @@ public:
   char GetOp() { return this->Op; }
   ExprAST *GetOperand() { return this->Operand; }
 
-  virtual ASTType GetASTType() { return ASTUnary; }
+  ASTType GetASTType() { return ASTUnary; }
 };
 
 // Operator definition
@@ -183,7 +183,7 @@ public:
   
   bool IsBinary() { return this->Args.size() == 2; };
 
-  virtual ASTType GetASTType() { return ASTOperator; }
+  ASTType GetASTType() { return ASTOperator; }
 };
 
 #endif

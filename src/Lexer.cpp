@@ -1,6 +1,3 @@
-#include <cstdio>
-#include <cstdlib>
-#include <string>
 #include "Lexer.hpp"
 
 #ifndef LEXER_H
@@ -17,7 +14,14 @@ void Lexer::SetInputFile(string file, int initialSeek) {
 
 int Lexer::GetNextChar() {
   CursorPosition++;
-  return InputFileStream.get();
+  CursorColumnPosition++;
+
+  char ch = InputFileStream.get();
+  if (ch == '\n') {
+	  CursorLinePosition++;
+	  CursorColumnPosition = 0;
+  }
+  return ch;
 }
 
 int Lexer::GetToken() {

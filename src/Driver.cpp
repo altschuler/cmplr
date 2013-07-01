@@ -1,72 +1,77 @@
 #include "Driver.hpp"
 
 void Driver::HandleDefinition() {
-  FunctionAST *func = TheParser.ParseDefinition();
-  Function *code = Gen->Generate(func);
-  if (!(func && code)) TheParser.GetNextToken();
+	FunctionAST *func = TheParser.ParseDefinition();
+	Function *code = Gen->Generate(func);
+	if (!(func && code))
+		TheParser.GetNextToken();
 }
 
 void Driver::HandleImport() {
-  ImportAST *imp = TheParser.ParseImport();
+	ImportAST *imp = TheParser.ParseImport();
 
-  Driver *driver = new Driver(Gen);
-  driver->Go(imp->FileName + ".wtf");
-  
-  TheParser.GetNextToken();
+	Driver *driver = new Driver(Gen);
+	driver->Go(imp->FileName + ".wtf");
+
+	TheParser.GetNextToken();
 }
 
 void Driver::HandleOperator() {
-  OperatorAST *func = TheParser.ParseOperator();
-  Function *code = Gen->Generate(func);
-  if (!(func && code)) TheParser.GetNextToken();
+	OperatorAST *func = TheParser.ParseOperator();
+	Function *code = Gen->Generate(func);
+	if (!(func && code))
+		TheParser.GetNextToken();
 }
 
 void Driver::HandleExtern() {
-  PrototypeAST *ext = TheParser.ParseExtern();
-  Function *code = Gen->Generate(ext);
-  // try recovering by ignoring current token
-  if (!(ext && code)) TheParser.GetNextToken();
+	PrototypeAST *ext = TheParser.ParseExtern();
+	Function *code = Gen->Generate(ext);
+	// try recovering by ignoring current token
+	if (!(ext && code))
+		TheParser.GetNextToken();
 }
 
 void Driver::HandleTopLevelExpr() {
-  FunctionAST *expr = TheParser.ParseTopLevelExpr();
-  Function *code = Gen->Generate(expr);
-  if (expr && code) {
-	// execute the anonymous wrapper function
-	void *funcPtr = Gen->GetExecEngine()->getPointerToFunction(code);
-	double (*fptr)() = (double (*)())(intptr_t)funcPtr;
-	fptr();
-  }
-  else TheParser.GetNextToken();
+	FunctionAST *expr = TheParser.ParseTopLevelExpr();
+	Function *code = Gen->Generate(expr);
+	if (expr && code) {
+		// execute the anonymous wrapper function
+		void *funcPtr = Gen->GetExecEngine()->getPointerToFunction(code);
+		double (*fptr)() = (double (*)())(intptr_t)funcPtr;
+		fptr();
+	} else
+		TheParser.GetNextToken();
 }
 
 void Driver::Go(string file) {
-  CurrentFile = file;
-  TheParser.SetInputFile(file, 0);
+	CurrentFile = file;
+	TheParser.SetInputFile(file, 0);
 
-  TheParser.GetNextToken();
-  
-  while(1) {
-	switch(TheParser.GetCurTok()) {
-	case tok_eof: return;
-	case tok_def: 	  
-	  HandleDefinition(); 
-	  break;
-	case tok_extern: 
-	  HandleExtern(); 
-	  break;
-	case tok_op: 
-	  HandleOperator(); 
-	  break;
-	case tok_import: 
-	  HandleImport(); 
-	  break;
-	case ';': 
-	  TheParser.GetNextToken(); // eat ;
-	  break; 
-	default: 
-	  HandleTopLevelExpr(); 
-	  break;
+	TheParser.GetNextToken();
+
+	while (1) {
+		switch (TheParser.GetCurTok()) {
+		case tok_eof:
+			return;
+		case tok_def:
+			HandleDefinition();
+			break;
+		case tok_extern:
+			HandleExtern();
+			break;
+		case tok_op:
+			HandleOperator();
+			break;
+		case tok_import:
+			HandleImport();
+			break;
+		case tok_end:
+		case ';':
+			TheParser.GetNextToken(); // eat ';' or 'end'
+			break;
+		default:
+			HandleTopLevelExpr();
+			break;
+		}
 	}
-  }
 }

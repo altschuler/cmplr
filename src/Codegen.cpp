@@ -48,7 +48,7 @@ Value *Codegen::Generate(VariableExprAST *expr) {
   if (val)
 	return val;
   else {
-	return ErrorV(str(format("Unknown variable '%1%'") % name).c_str());
+	return BaseError::Throw<Value*>(str(format("Unknown variable '%1%'") % name).c_str());
   }
 };
 
@@ -74,7 +74,7 @@ Value *Codegen::Generate(BinaryExprAST *expr) {
 
   Function *opFunc = TheModule->getFunction("binary" + expr->GetOp());
   if (!opFunc) 
-	return ErrorV(str(format("Unknown binary operator '%1%'") % expr->GetOp()).c_str());
+	return BaseError::Throw<Value*>(str(format("Unknown binary operator '%1%'") % expr->GetOp()));
 
   Value *args[2] = {L, R};
   return Builder.CreateCall(opFunc, args, "binop");
@@ -88,13 +88,13 @@ Value *Codegen::Generate(CallExprAST *expr) {
 
   Function *CalleeF = TheModule->getFunction(callee);
   if (CalleeF == 0) 
-	return ErrorV(formatErr("Unknown function '%1%'", callee.c_str()));
+	return BaseError::Throw<Value*>(str(format(("Unknown function '%1%'", callee.c_str()))));
 
   if (CalleeF->arg_size() != args.size())
-	return ErrorV(str(format("Wrong number of arguments in function %1%; got %2%, %3% expected") 
-					  % args.size() 
-					  % CalleeF->arg_size()  
-					  % callee).c_str());
+	return BaseError::Throw<Value*>(str(boost::format("Wrong number of arguments in function %1%; got %2%, %3% expected")
+						% callee.c_str()
+						% args.size()
+						% CalleeF->arg_size()));
 
   vector<Value*> ArgsV;
   for (unsigned i = 0, e = args.size(); i != e; ++i) {
@@ -175,7 +175,8 @@ Value *Codegen::Generate(ForExprAST *expr) {
   NamedValues[expr->GetIterName()] = phi;
 
   // emit body code
-  if (this->Generate(expr->GetBody()) == 0)
+  Value* bodyVal =  this->Generate(expr->GetBody());
+  if (bodyVal == 0)
 	return 0;
 
   // handle step
@@ -216,7 +217,8 @@ Value *Codegen::Generate(ForExprAST *expr) {
   else
 	NamedValues.erase(expr->GetIterName());
 
-  return Constant::getNullValue(Type::getDoubleTy(getGlobalContext()));
+  return bodyVal;
+  //return Constant::getNullValue(Type::getDoubleTy(getGlobalContext()));
 }
 
 Function *Codegen::Generate(PrototypeAST *proto) {
@@ -235,13 +237,13 @@ Function *Codegen::Generate(PrototypeAST *proto) {
 	
 	  if (!F->empty()) 
 		{
-		  ErrorF("Redefinition of function");
+		  BaseError::Throw<Function*>("Redefinition of function");
 		  return 0;
 		}
 	
 	  if (F->arg_size() != Args.size()) 
 		{
-		  Error("Redefinition of function with wrong number of arguments");
+		  BaseError::Throw<Function*>("Redefinition of function with wrong number of arguments");
 		  return 0;
 		}
 	}
@@ -304,7 +306,7 @@ Value *Codegen::Generate(UnaryExprAST *expr) {
 
   Function *func = TheModule->getFunction("unary" + expr->GetOp());
   if (func == 0)
-	return ErrorV("Unknown unary operator");
+	return BaseError::Throw<Value*>("Unknown unary operator");
 
   return Builder.CreateCall(func, val, "unaryop");
 }
@@ -324,13 +326,13 @@ Function *Codegen::Generate(OperatorAST *opr) {
 	F = TheModule->getFunction(Name);
 	
 	if (!F->empty()) {
-	  ErrorF("Redefinition of operator");
+		BaseError::Throw<Function*>("Redefinition of operator");
 	  return 0;
 	}
 	
 	if (F->arg_size() != Args.size()) {
-	  Error("Redefinition of operator with wrong number of arguments");
-	  return 0;
+		BaseError::Throw<Function*>("Redefinition of operator with wrong number of arguments");
+	  	return 0;
 	}
   }
   

@@ -5,6 +5,7 @@
 
 using namespace std;
 using namespace llvm;
+using namespace boost;
 
 Parser::Parser() {
 	BinopPrecedence['<'] = 10;
@@ -12,348 +13,369 @@ Parser::Parser() {
 	BinopPrecedence['-'] = 20;
 	BinopPrecedence['*'] = 40;
 	BinopPrecedence['/'] = 40;
+
+	BaseError::SetLexer(&TheLexer);
 }
 
 void Parser::SetInputFile(string file, int initialSeek) {
-  TheLexer.SetInputFile(file, initialSeek);
+	TheLexer.SetInputFile(file, initialSeek);
 }
 
 int Parser::GetNextToken() {
-  return CurTok = TheLexer.GetToken();
+	return CurTok = TheLexer.GetToken();
 }
 
 int Parser::GetCurTok() {
-  return CurTok;
+	return CurTok;
 }
 
 int Parser::GetTokPrecedence() {
-  if (!isascii(CurTok))
-	return -1;
+	if (!isascii(CurTok))
+		return -1;
 
-  int prec = BinopPrecedence[CurTok];
-  if (prec <= 0)
-	return -1;
+	int prec = BinopPrecedence[CurTok];
+	if (prec <= 0)
+		return -1;
 
-  return prec;
+	return prec;
 }
 
-
 // Expression parsing
-
 ExprAST *Parser::ParseNumberExpr() {
-  ExprAST *Result = new NumberExprAST(TheLexer.GetNumVal());
-  this->GetNextToken();
-  return Result;
+	ExprAST *Result = new NumberExprAST(TheLexer.GetNumVal());
+	this->GetNextToken();
+	return Result;
 }
 
 ExprAST *Parser::ParseParenExpr() {
-  this->GetNextToken(); // eat (
-  ExprAST *V = ParseExpression();
-  if (!V) 
-	return 0;
+	this->GetNextToken(); // eat (
+	ExprAST *V = ParseExpression();
+	if (!V)
+		return 0;
 
-  if (CurTok != ')')
-	return Error("Expected ')'");
+	if (CurTok != ')')
+		return BaseError::Throw<ExprAST*>("Expected ')'");
 
-  this->GetNextToken(); // eat )
+	this->GetNextToken(); // eat )
 
-  return V;
+	return V;
 }
 
 ExprAST *Parser::ParseIdentifierExpr() {
-  string IdName = TheLexer.GetIdentifierStr();
-  
-  this->GetNextToken(); // eat the identifier
+	string IdName = TheLexer.GetIdentifierStr();
 
-  if (CurTok != '(')
-	return new VariableExprAST(IdName);
+	this->GetNextToken(); // eat the identifier
 
-  this->GetNextToken();
-  vector<ExprAST*> Args;
-  if (CurTok != ')') {
-	while (1) {
-	  ExprAST *Arg = this->ParseExpression();
-	  if (!Arg) 
-		return 0;
+	if (CurTok != '(')
+		return new VariableExprAST(IdName);
 
-	  Args.push_back(Arg);
-	  if (CurTok == ')')
-		break;
+	this->GetNextToken();
+	vector<ExprAST*> Args;
+	if (CurTok != ')') {
+		while (1) {
+			ExprAST *Arg = this->ParseExpression();
+			if (!Arg)
+				return 0;
+
+			Args.push_back(Arg);
+			if (CurTok == ')')
+				break;
+
+			if (CurTok != ',')
+				return BaseError::Throw<ExprAST*>("Expected ',' in argument list");
+			// eat ','
+			this->GetNextToken();
+		}
 	}
-  }
 
-  this->GetNextToken(); // eat )
-  
-  return new CallExprAST(IdName, Args);
+	this->GetNextToken(); // eat )
+
+	return new CallExprAST(IdName, Args);
 }
 
 ExprAST *Parser::ParseConditional() {
-  this->GetNextToken(); // eat if
-  
-  ExprAST *cond = this->ParseExpression();
+	this->GetNextToken(); // eat if
 
-  if (this->GetCurTok() != tok_then)
-	return Error("Expected 'then'");
+	ExprAST *cond = this->ParseExpression();
 
-  this->GetNextToken(); // eat then
+	if (this->GetCurTok() != tok_then)
+		return BaseError::Throw<ExprAST*>("Expected 'then'");
 
-  ExprAST *then = this->ParseExpression();
+	this->GetNextToken(); // eat then
 
-  if (this->GetCurTok() != tok_else)
-	return Error("Expected 'else'");
-  
-  this->GetNextToken(); // eat else
+	ExprAST *then = this->ParseExpression();
 
-  ExprAST *els = this->ParseExpression();  
+	if (this->GetCurTok() != tok_else)
+		return BaseError::Throw<ExprAST*>("Expected 'else'");
 
-  return new ConditionalExprAST(cond, then, els);
+	this->GetNextToken(); // eat else
+
+	ExprAST *els = this->ParseExpression();
+
+	return new ConditionalExprAST(cond, then, els);
 }
 
 ExprAST *Parser::ParseFor() {
-  // eat 'for'
-  this->GetNextToken();
+	// eat 'for'
+	this->GetNextToken();
 
-  string iterName = TheLexer.GetIdentifierStr();
-  
-  this->GetNextToken();
-  if (CurTok != '=')
-	return Error("For loop initializor must be assignment, missing '='");
+	string iterName = TheLexer.GetIdentifierStr();
 
-  // eat '='
-  this->GetNextToken();
+	this->GetNextToken();
+	if (CurTok != '=')
+		return BaseError::Throw<ExprAST*>("For loop initializer must be assignment, missing '='");
 
-  ExprAST *init = this->ParseExpression();
-  if (init == 0)
-	return 0;
+	// eat '='
+	this->GetNextToken();
 
-  if (CurTok != ',')
-	return Error("Expected comma after for loop initializor");
-  
-  // eat ','
-  this->GetNextToken();
+	ExprAST *init = this->ParseExpression();
+	if (init == 0)
+		return 0;
 
-  ExprAST *end = this->ParseExpression();
-  if (end == 0)
-	return 0;
-  
-  ExprAST *step = 0;
-  if (CurTok == ',') {
+	if (CurTok != ',')
+		return BaseError::Throw<ExprAST*>("Expected comma after for loop initializer");
+
 	// eat ','
 	this->GetNextToken();
-	
-	step = this->ParseExpression();
-	if (step == 0)
-	  return 0;
-  }
 
-  if (CurTok != tok_in)
-	return Error("Expected 'in' before loop body");
+	ExprAST *end = this->ParseExpression();
+	if (end == 0)
+		return 0;
 
-  // eat 'in'
-  this->GetNextToken();
+	ExprAST *step = 0;
+	if (CurTok == ',') {
+		// eat ','
+		this->GetNextToken();
 
-  BlockAST *body = this->ParseBlock();
+		step = this->ParseExpression();
+		if (step == 0)
+			return 0;
+	}
 
-  return new ForExprAST(iterName, init, step, end, body);
+	if (CurTok != tok_in)
+		return BaseError::Throw<ExprAST*>("Expected 'in' before loop body");
+
+	// eat 'in'
+	this->GetNextToken();
+
+	BlockAST *body = this->ParseBlock();
+
+	return new ForExprAST(iterName, init, step, end, body);
 }
 
 ExprAST *Parser::ParseUnary() {
-  if (!isascii(CurTok) || CurTok == '(' || CurTok == ',')
-	return this->ParsePrimary();
-  
-  // save the operator
-  int op = CurTok;
-  this->GetNextToken();
-  ExprAST *operand = this->ParseUnary();
+	if (!isascii(CurTok) || CurTok == '(' || CurTok == ',')
+		return this->ParsePrimary();
 
-  if (operand)
-	return new UnaryExprAST(op, operand);
+	// save the operator
+	int op = CurTok;
+	this->GetNextToken();
+	ExprAST *operand = this->ParseUnary();
 
-  return 0;
+	if (operand)
+		return new UnaryExprAST(op, operand);
+
+	return 0;
 }
 
 ExprAST *Parser::ParsePrimary() {
-  switch (CurTok) {
-  case tok_identifier: return this->ParseIdentifierExpr();
-  case tok_number: return this->ParseNumberExpr();
-  case tok_if: return this->ParseConditional();
-  case tok_for: return this->ParseFor();
-  case '(': return this->ParseParenExpr();
-  default: return Error(boost::str(boost::format("Expected expression, token: %1%") % CurTok).c_str());
-  }
+	switch (CurTok) {
+	case tok_identifier:
+		return this->ParseIdentifierExpr();
+	case tok_number:
+		return this->ParseNumberExpr();
+	case tok_if:
+		return this->ParseConditional();
+	case tok_for:
+		return this->ParseFor();
+	case tok_end:
+		this->GetNextToken(); // eat 'end'
+		return this->ParsePrimary();
+	case tok_eof:
+		exit(0);
+		return this->ParsePrimary();
+	case '(':
+		return this->ParseParenExpr();
+	default:
+		return BaseError::Throw<ExprAST*>(str(format("Expected expression, token: %1%")
+								% CurTok).c_str());
+	}
 }
 
 ExprAST *Parser::ParseExpression() {
-  ExprAST *LHS = this->ParseUnary();
-  if (!LHS)
-	return 0;
+	ExprAST *LHS = this->ParseUnary();
+	if (!LHS)
+		return 0;
 
-  return this->ParseBinOpRHS(0, LHS);
+	return this->ParseBinOpRHS(0, LHS);
 }
 
 ExprAST *Parser::ParseBinOpRHS(int exprPrec, ExprAST* lhs) {
-  while(1) {
-	int tokPrec = this->GetTokPrecedence();
-	
-	// if expression has higher precedence, return lhs
-	// eg if next token is not an operator
-	if (tokPrec < exprPrec)
-	  return lhs;
-	
-	// save the current operator
-	int binOp = CurTok;
+	while (1) {
+		int tokPrec = this->GetTokPrecedence();
 
-	// eat the current operator and parse the rhs
-	this->GetNextToken(); // eat the operator	
-	ExprAST *rhs = this->ParseUnary();
-	if (!rhs)
-	  return 0;
-	
-	// CurTok is now expected to be either an operator or
-	// not, if not precedence is -1 (and thus always <= tokPrec)
-	//
-	// if the next token has higher precedence than the current
-	// then 
-	int nextTokPrec = this->GetTokPrecedence();
-	if (tokPrec < nextTokPrec) {
-	  rhs = this->ParseBinOpRHS(tokPrec + 1, rhs);
-	  if (rhs == 0)
-		return 0;
+		// if expression has higher precedence, return lhs
+		// eg if next token is not an operator
+		if (tokPrec < exprPrec) {
+			return lhs;
+		}
+
+		// save the current operator
+		int binOp = CurTok;
+
+		// eat the current operator and parse the rhs
+		this->GetNextToken(); // eat the operator
+		ExprAST *rhs = this->ParseUnary();
+		if (!rhs)
+			return 0;
+
+		// CurTok is now expected to be either an operator or
+		// not, if not precedence is -1 (and thus always <= tokPrec)
+		//
+		// if the next token has higher precedence than the current
+		// then
+		int nextTokPrec = this->GetTokPrecedence();
+		if (tokPrec < nextTokPrec) {
+			rhs = this->ParseBinOpRHS(tokPrec + 1, rhs);
+			if (rhs == 0)
+				return 0;
+		}
+
+		lhs = new BinaryExprAST(binOp, lhs, rhs);
 	}
 
-	lhs = new BinaryExprAST(binOp, lhs, rhs);
-  }
+	return 0;
 }
 
 PrototypeAST *Parser::ParsePrototype() {
-  if (CurTok != tok_identifier)
-	return ErrorP("Expected name of function");
+	if (CurTok != tok_identifier)
+		return BaseError::Throw<PrototypeAST*>("Expected name of function");
 
-  string name = TheLexer.GetIdentifierStr();
-  this->GetNextToken(); // eat name
-  
-  if (CurTok != '(')
-	return ErrorP("Expected '(' after name of function");
+	string name = TheLexer.GetIdentifierStr();
+	this->GetNextToken(); // eat name
 
-  vector<string> args;
-  while (this->GetNextToken() == tok_identifier) {
-	args.push_back(TheLexer.GetIdentifierStr());
-  }
+	if (CurTok != '(')
+		return BaseError::Throw<PrototypeAST*>("Expected '(' after name of function");
 
-  if (CurTok != ')')
-	return ErrorP("Expected ')' at end of function name");
+	vector<string> args;
+	while (this->GetNextToken() == tok_identifier) {
+		args.push_back(TheLexer.GetIdentifierStr());
+	}
 
-  this->GetNextToken(); // eat )
+	if (CurTok != ')')
+		return BaseError::Throw<PrototypeAST*>("Expected ')' at end of function name");
 
-  return new PrototypeAST(name, args);  
+	this->GetNextToken(); // eat )
+
+	return new PrototypeAST(name, args);
 }
 
 FunctionAST *Parser::ParseDefinition() {
-  this->GetNextToken(); // eat 'def'
-  PrototypeAST *prototype = this->ParsePrototype();
-  if (prototype == 0)
-	return 0;
+	this->GetNextToken(); // eat 'def'
+	PrototypeAST *prototype = this->ParsePrototype();
+	if (prototype == 0)
+		return 0;
 
-  BlockAST *body = this->ParseBlock();
+	BlockAST *body = this->ParseBlock();
 
-  return new FunctionAST(prototype, body);
+	return new FunctionAST(prototype, body);
 }
 
 BlockAST *Parser::ParseBlock() {
-  BlockAST *block = new BlockAST(123);
-  
-  while (CurTok != tok_end) {
-	block->AppendExpression(this->ParseExpression());
-	//	if (CurTok != ';')
-	//	  return ErrorB("Expected ';' after expression");
+	BlockAST *block = new BlockAST(123);
 
-	// eat ';'
-	this->GetNextToken();
-  }
+	while (CurTok != tok_end) {
+		block->AppendExpression(this->ParseExpression());
+		//  	if (CurTok != ';' && CurTok != tok_end)
+		//	  return ErrorB("Expected ';' or 'end' after expression");
 
-  if (CurTok != tok_end)
-	return ErrorB("Expected 'end' after block");
+		// eat ';' or 'and'
+		this->GetNextToken();
+	}
 
-  // eat 'end'
-  this->GetNextToken();
-  
-  return block;
+	if (CurTok != tok_end)
+		return BaseError::Throw<BlockAST*>("Expected 'end' after block");
+
+	// eat 'end'
+	//this->GetNextToken();
+
+	return block;
 }
 
 OperatorAST *Parser::ParseOperator() {
-  // eat 'op'
-  this->GetNextToken(); 
-  
-  // save the operator and precedence
-  char op = CurTok;
-  // eat operator
-  this->GetNextToken();
-
-  if (CurTok != tok_number)
-	return ErrorO("Expected precedence after operator");
-
-  int prec = TheLexer.GetNumVal();
-  // eat precendence
-  this->GetNextToken();
-
-  if (CurTok != '(') 
-	return ErrorO("Expected '(' after operator precedence");
-
-  // eat '('
-  this->GetNextToken();
-
-  vector<string> args;
-  while (CurTok == tok_identifier) {
-	args.push_back(TheLexer.GetIdentifierStr());
+	// eat 'op'
 	this->GetNextToken();
-  }
 
-  if (args.size() > 2 || args.size() < 1) {
-	return ErrorO("Wrong number of arguments for operator definition, 1 or 2 expected");
-  }
+	// save the operator and precedence
+	char op = CurTok;
+	// eat operator
+	this->GetNextToken();
 
-  if (CurTok != ')') 
-	return ErrorO("Expected ')' after operator arguments");
+	if (CurTok != tok_number)
+		return BaseError::Throw<OperatorAST*>("Expected precedence after operator");
 
-  // eat ')'
-  this->GetNextToken();
+	int prec = TheLexer.GetNumVal();
+	// eat precendence
+	this->GetNextToken();
 
-  BlockAST* body = this->ParseBlock();
+	if (CurTok != '(')
+		return BaseError::Throw<OperatorAST*>("Expected '(' after operator precedence");
 
-  // install precedence
-  BinopPrecedence[op] = prec;
+	// eat '('
+	this->GetNextToken();
 
-  return new OperatorAST(op, prec, args, body);
+	vector<string> args;
+	while (CurTok == tok_identifier) {
+		args.push_back(TheLexer.GetIdentifierStr());
+		this->GetNextToken();
+	}
+
+	if (args.size() > 2 || args.size() < 1) {
+		return BaseError::Throw<OperatorAST*>("Wrong number of arguments for operator definition, 1 or 2 expected");
+	}
+
+	if (CurTok != ')')
+		return BaseError::Throw<OperatorAST*>("Expected ')' after operator arguments");
+
+	// eat ')'
+	this->GetNextToken();
+
+	BlockAST* body = this->ParseBlock();
+
+	// install precedence
+	BinopPrecedence[op] = prec;
+
+	return new OperatorAST(op, prec, args, body);
 }
 
 PrototypeAST *Parser::ParseExtern() {
-  this->GetNextToken(); // eat "extern"
-  return this->ParsePrototype();
+	this->GetNextToken(); // eat "extern"
+	return this->ParsePrototype();
 }
 
 // Top level expressions
 FunctionAST *Parser::ParseTopLevelExpr() {
-  if (ExprAST *expr = this->ParseExpression()) {
-	vector<string> args;
-	PrototypeAST *prototype = new PrototypeAST("", args);
-	// wrap the expression in a block
-	BlockAST *block = new BlockAST(expr);
-	return new FunctionAST(prototype, block);
-  }
-  return 0;
+	if (ExprAST *expr = this->ParseExpression()) {
+		vector<string> args;
+		PrototypeAST *prototype = new PrototypeAST("", args);
+		// wrap the expression in a block
+		BlockAST *block = new BlockAST(expr);
+		return new FunctionAST(prototype, block);
+	}
+	return 0;
 }
 
 ImportAST *Parser::ParseImport() {
-  if (CurTok != tok_import)
-	return ErrorI("Expected import statement");
+	if (CurTok != tok_import)
+		return BaseError::Throw<ImportAST*>("Expected import statement");
 
-  // eat 'import'
-  this->GetNextToken();
+	// eat 'import'
+	this->GetNextToken();
 
-  if (CurTok != tok_string)
-	return ErrorI("Expected file name after import");
-  
-  return new ImportAST(TheLexer.GetStringVal(), TheLexer.GetCursorPosition());
+	if (CurTok != tok_string)
+		return BaseError::Throw<ImportAST*>("Expected file name after import");
+
+	return new ImportAST(TheLexer.GetStringVal(), TheLexer.GetCursorPosition());
 }
 
 #endif

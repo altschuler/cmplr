@@ -1,0 +1,10 @@
+#import 'stdlib';
+
+def foo(n m)
+	for i = 0, i < n - 1 in 
+		sin(i);
+	end
+	m;
+end
+
+pdoub(foo(100, 100));

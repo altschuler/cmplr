@@ -38,7 +38,7 @@ class Lexer {
 	int CursorLinePosition;
 
 public:
-	Lexer() : LastChar(' '), IdentifierStr("") {}
+  Lexer() : LastChar(' '), IdentifierStr(""), CursorLinePosition(0) {}
 
 	void SetInputFile(string file, int initialSeek);
 

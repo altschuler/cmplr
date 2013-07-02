@@ -1,10 +1,12 @@
-#import 'stdlib';
+import 'examples/stdlib';
 
 def foo(n m)
 	for i = 0, i < n - 1 in 
-		sin(i);
+		for j = 0, j < m - 1 in 
+			pdoub(j);
+			pchar(32);
+		end
 	end
-	m;
 end
 
-pdoub(foo(100, 100));
+foo(4, 4);

@@ -88,7 +88,7 @@ Value *Codegen::Generate(CallExprAST *expr) {
 
   Function *CalleeF = TheModule->getFunction(callee);
   if (CalleeF == 0) 
-	return BaseError::Throw<Value*>(str(format(("Unknown function '%1%'", callee.c_str()))));
+	return BaseError::Throw<Value*>(str(format("Unknown function '%1%'") % callee));
 
   if (CalleeF->arg_size() != args.size())
 	return BaseError::Throw<Value*>(str(boost::format("Wrong number of arguments in function %1%; got %2%, %3% expected")
@@ -167,7 +167,7 @@ Value *Codegen::Generate(ForExprAST *expr) {
   Builder.SetInsertPoint(loopBlock);
 
   // create the phi node and set initVal as entry
-  PHINode *phi = Builder.CreatePHI(Type::getDoubleTy(getGlobalContext()), 2, expr->GetIterName());
+  PHINode *phi = Builder.CreatePHI(Type::getDoubleTy(getGlobalContext()), 2, expr->GetIterName().c_str());
   phi->addIncoming(initVal, preHeaderBlock);
 
   // save old value of same name as IterName (if any)
@@ -204,7 +204,7 @@ Value *Codegen::Generate(ForExprAST *expr) {
   BasicBlock *afterBlock = BasicBlock::Create(getGlobalContext(), "afterloop", func);
   
   // create the loop ending branch
-  Builder.CreateCondBr(endCond, loopEndBlock, afterBlock);
+  Builder.CreateCondBr(endCond, loopBlock, afterBlock);
   
   // start inserting code after loop
   Builder.SetInsertPoint(afterBlock);

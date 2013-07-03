@@ -1,0 +1,24 @@
+import 'examples/stdlib'
+
+def f(x)
+	sin(x) * 5 + 5;
+end
+
+def draw(sx)
+	for i = 0, i < 10 in
+		for j = 0, j < 50 in
+			if (f(j/10 + sx) > i) & (f(j/10 + sx) < i + 3/2) then
+			   pchar(35);
+			else
+			   pchar(32);
+			end
+		end
+		pchar(10);
+	end
+end
+
+for i = 0, i < 100 in
+	clrscr();
+	draw(i/5);
+	wait(50000);
+end

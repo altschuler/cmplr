@@ -4,7 +4,7 @@ end
 
 op ! 1 (e) 
    if e then 0; 
-   else 1; end; 
+   else 1; end
 end
 
 # binary operators
@@ -15,7 +15,7 @@ end
 op | 5 (l r) 
    if l then 1;
    elsif r then 1;
-   else 0; end; 
+   else 0; end 
 end
 
 op & 5 (l r) 
@@ -25,7 +25,7 @@ end
 op = 4 (l r) 
    if l < r then 0; 
    elsif r < l then 0; 
-   else 1; end; 
+   else 1; end 
 end
 
 # some useful functions
@@ -37,6 +37,8 @@ extern pchar(c);
 extern pdoub(n);
 extern pline();
 
+extern clrscr();
+extern wait(t);
 extern exit();
 
 # utilities

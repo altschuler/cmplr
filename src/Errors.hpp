@@ -1,10 +1,10 @@
+#ifndef ERRORS_HPP
+#define ERRORS_HPP
+
 #include "llvm/Value.h"
 #include "boost/format.hpp"
 #include "Lexer.hpp"
 #include "AST.hpp"
-
-#ifndef ERRORS_HPP
-#define ERRORS_HPP
 
 class BaseError {
 	static Lexer *Lex;

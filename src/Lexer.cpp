@@ -8,6 +8,10 @@ using namespace std;
 void Lexer::SetInputFile(string file, int initialSeek) {
   File = file;
   InputFileStream.open(file);
+
+  if (!InputFileStream)
+	  BaseError::Throw<int>(str(boost::format("File not found: '%1%'") % file));
+
   CursorPosition = initialSeek;
   InputFileStream.seekg(CursorPosition);
 }

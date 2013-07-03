@@ -2,6 +2,8 @@
 #include <cstdlib>
 #include <string>
 #include <fstream>
+#include "boost/format.hpp"
+#include "Errors.hpp"
 
 using namespace std;
 

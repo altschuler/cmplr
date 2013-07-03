@@ -17,7 +17,7 @@
 #define PARSER_HPP
 
 class Parser {
-  map<char, int> BinopPrecedence;
+  static map<char, int> BinopPrecedence;
   Lexer TheLexer;
   int CurTok;
 

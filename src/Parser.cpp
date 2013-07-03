@@ -7,6 +7,8 @@ using namespace std;
 using namespace llvm;
 using namespace boost;
 
+map<char, int> Parser::BinopPrecedence;
+
 Parser::Parser() {
 	BinopPrecedence['<'] = 10;
 	BinopPrecedence['+'] = 20;

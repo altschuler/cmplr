@@ -38,7 +38,10 @@ public:
   ExprAST *ParseConditional();
   ExprAST *ParseFor();
 
+  BlockAST *ParseBlock(int endOfBlock, int endOfBlockAlt);
+  BlockAST *ParseBlock(int endOfBlock);
   BlockAST *ParseBlock();
+
   PrototypeAST *ParsePrototype();
   FunctionAST *ParseDefinition();
   OperatorAST *ParseOperator();

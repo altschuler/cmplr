@@ -9,20 +9,26 @@ using namespace std;
 #define LEXER_HPP
 
 enum Token {
-	tok_eof = -1,
-	tok_def = -2,
-	tok_extern = -3,
-	tok_identifier = -4,
-	tok_number = -5,
-	tok_if = -6,
-	tok_then = -7,
-	tok_else = -8,
-	tok_for = -9,
-	tok_in = -10,
-	tok_op = -11,
-	tok_import = -12,
-	tok_string = -13,
-	tok_end = -14,
+  tok_eof = -2,
+  tok_import = -4,
+
+  tok_def = -8,
+  tok_op = -16,
+  tok_end = -32,
+
+  tok_extern = -64,
+
+  tok_identifier = -128,
+  tok_number = -256,
+  tok_string = -512,
+
+  tok_if = -1024,
+  tok_then = -2048,
+  tok_else = -4096,
+  tok_elsif = -8192,
+
+  tok_for = -16384,
+  tok_in = -32768,
 };
 
 class Lexer {

@@ -28,7 +28,7 @@ int main(int argc, const char *argv[]) {
   string inputFile(argv[1]);
   
   driver->Go(inputFile);
-  
+
   // hax to flush cout
   pline();
 

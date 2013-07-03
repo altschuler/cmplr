@@ -39,6 +39,7 @@ int Lexer::GetToken() {
 	if (IdentifierStr == "if") return tok_if;
 	if (IdentifierStr == "then") return tok_then;
 	if (IdentifierStr == "else") return tok_else;
+	if (IdentifierStr == "elsif") return tok_elsif;
 	if (IdentifierStr == "for") return tok_for;
 	if (IdentifierStr == "in") return tok_in;
 	if (IdentifierStr == "op") return tok_op;

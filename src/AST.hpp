@@ -85,15 +85,28 @@ public:
   virtual ASTType GetASTType() { return ASTBinaryExpr; }
 };
 
-class ConditionalExprAST : public ExprAST {
-  ExprAST *Cond, *Then, *Else;
+class ConditionalElement
+{
+  ExprAST *Cond;
+  BlockAST *Consequence;
 public:
-  ConditionalExprAST(ExprAST *cond, ExprAST *then, ExprAST *els) 
-	: Cond(cond), Then(then), Else(els) {}
-  
+  ConditionalElement(ExprAST *cond, BlockAST *cons) 
+	: Cond(cond), Consequence(cons) {}
+
   ExprAST *GetCond() { return this->Cond; }
-  ExprAST *GetThen() { return this->Then; }
-  ExprAST *GetElse() { return this->Else; }
+  BlockAST *GetConsequence() { return this->Consequence; }
+};
+
+class ConditionalExprAST : public ExprAST {
+  vector<ConditionalElement*> Conds;
+  BlockAST *Else;
+  
+public:
+  ConditionalExprAST(vector<ConditionalElement*> conds, BlockAST *els) 
+	: Conds(conds), Else(els) {}
+  
+  vector<ConditionalElement*> GetConds() { return this->Conds; }
+  BlockAST *GetElse() { return this->Else; }
 
   virtual ASTType GetASTType() { return ASTConditionalExpr; }
 };

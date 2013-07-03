@@ -35,8 +35,9 @@ void Driver::HandleTopLevelExpr() {
 	FunctionAST *expr = TheParser.ParseTopLevelExpr();
 	Function *code = Gen->Generate(expr);
 	if (expr && code) {
+		llvm::ExecutionEngine* execEngine = Gen->GetExecEngine();
 		// execute the anonymous wrapper function
-		void *funcPtr = Gen->GetExecEngine()->getPointerToFunction(code);
+		void *funcPtr = execEngine->getPointerToFunction(code);
 		double (*fptr)() = (double (*)())(intptr_t)funcPtr;
 		fptr();
 	} else

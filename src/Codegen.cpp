@@ -16,7 +16,7 @@ Codegen::Codegen(ExecutionEngine *execEngine, Module *module) : Builder(getGloba
   TheFPM->add(createInstructionCombiningPass());
   TheFPM->add(createReassociatePass());
   TheFPM->add(createGVNPass());
-  TheFPM->add(createCFGSimplificationPass());
+  //TheFPM->add(createCFGSimplificationPass());
   TheFPM->doInitialization();
 }
 
@@ -109,47 +109,67 @@ Value *Codegen::Generate(CallExprAST *expr) {
 };
 
 Value *Codegen::Generate(ConditionalExprAST *expr) {
-  Value *condVal = this->Generate(expr->GetCond());
-  if (condVal == 0)
-	return 0;
+	vector<ConditionalElement*> conds = expr->GetConds();
 
-  condVal = Builder.CreateFCmpONE(condVal, ConstantFP::get(getGlobalContext(), APFloat(0.0)), "ifcond");
+	Function *func = Builder.GetInsertBlock()->getParent();
+	BasicBlock *mergeBlock = BasicBlock::Create(getGlobalContext(), "merge");
+	BasicBlock *entryBlock = Builder.GetInsertBlock();
 
-  Function *func = Builder.GetInsertBlock()->getParent();
+	// return value will be determined using a phi node in the merge block
+	Builder.SetInsertPoint(mergeBlock);
+	PHINode *phi = Builder.CreatePHI(Type::getDoubleTy(getGlobalContext()), conds.size(), "iftmp");
 
-  BasicBlock *thenBlock = BasicBlock::Create(getGlobalContext(), "then", func);
-  BasicBlock *elseBlock = BasicBlock::Create(getGlobalContext(), "else");
-  BasicBlock *mergeBlock = BasicBlock::Create(getGlobalContext(), "merge");
+	Builder.SetInsertPoint(entryBlock);
 
-  Builder.CreateCondBr(condVal, thenBlock, elseBlock);
+	for (int i = 0; i < conds.size(); ++i) {
+		ConditionalElement *elm = conds[i];
 
-  // THEN body
-  Builder.SetInsertPoint(thenBlock);
-  Value *thenVal = this->Generate(expr->GetThen());
-  if (thenVal == 0)
-	return 0;
+		// emit condition
+		Value *condVal = this->Generate(elm->GetCond());
+		condVal = Builder.CreateFCmpONE(condVal, ConstantFP::get(getGlobalContext(), APFloat(0.0)), "ifcond");
+		if (condVal == 0)
+			return BaseError::Throw<Value*>("Condition is undefined");
 
-  Builder.CreateBr(mergeBlock);
-  thenBlock = Builder.GetInsertBlock();
-  func->getBasicBlockList().push_back(elseBlock);
+		BasicBlock *condBlock = BasicBlock::Create(getGlobalContext(), "then");
+		BasicBlock *nextBlock = BasicBlock::Create(getGlobalContext(), "else");
 
-  // ELSE body
-  Builder.SetInsertPoint(elseBlock);
-  Value *elseVal = this->Generate(expr->GetElse());
-  if (elseVal == 0)
-	return 0;
+		// branch into body if condition is met, else skip to next conditional element
+		Builder.CreateCondBr(condVal, condBlock, nextBlock);
 
-  Builder.CreateBr(mergeBlock);
-  elseBlock = Builder.GetInsertBlock();
+		// emit body code into conditional block
+		Builder.SetInsertPoint(condBlock);
+		Value *condBody = this->Generate(elm->GetConsequence());
+		// merge back into main flow
+		Builder.CreateBr(mergeBlock);
 
-  func->getBasicBlockList().push_back(mergeBlock);
-  Builder.SetInsertPoint(mergeBlock);
+		// add value to phi
+		phi->addIncoming(condBody, condBlock);
 
-  PHINode *phi = Builder.CreatePHI(Type::getDoubleTy(getGlobalContext()), 2, "iftmp");
-  phi->addIncoming(thenVal, thenBlock);
-  phi->addIncoming(elseVal, elseBlock);
+		// push conditional block into func
+		func->getBasicBlockList().push_back(condBlock);
+		func->getBasicBlockList().push_back(nextBlock);
 
-  return phi;
+		Builder.SetInsertPoint(nextBlock);
+	}
+
+	// 'else' block
+	Value *elseVal = this->Generate(expr->GetElse());
+	if (elseVal == 0)
+		return BaseError::Throw<Value*>("'else' value is undefined");
+
+	Builder.CreateBr(mergeBlock);
+	//elseBlock = Builder.GetInsertBlock();
+
+	// add else value to phi
+	phi->addIncoming(elseVal, Builder.GetInsertBlock());
+
+	func->getBasicBlockList().push_back(mergeBlock);
+
+	Builder.SetInsertPoint(mergeBlock);
+
+//	func->viewCFG();
+
+	return phi;
 };
 
 Value *Codegen::Generate(ForExprAST *expr) {

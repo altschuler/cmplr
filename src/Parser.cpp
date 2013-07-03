@@ -94,25 +94,49 @@ ExprAST *Parser::ParseIdentifierExpr() {
 }
 
 ExprAST *Parser::ParseConditional() {
-	this->GetNextToken(); // eat if
+	// create the list of conditionals in the if statement
+	vector<ConditionalElement*> conds;
 
-	ExprAST *cond = this->ParseExpression();
+	// parse the list of conditionals in the 'if' statement
+	while(1) {
+		if (CurTok != tok_elsif && CurTok != tok_else && CurTok != tok_if)
+			return BaseError::Throw<ExprAST*>("Expected 'else' or 'elsif'");
 
-	if (this->GetCurTok() != tok_then)
-		return BaseError::Throw<ExprAST*>("Expected 'then'");
+		this->GetNextToken(); // eat 'if' or 'elsif'
 
-	this->GetNextToken(); // eat then
+	  // parse the conditional value
+	  ExprAST *cond = this->ParseExpression();
 
-	ExprAST *then = this->ParseExpression();
+	  if (this->GetCurTok() != tok_then)
+		  return BaseError::Throw<ExprAST*>("Expected 'then'");
 
+	  this->GetNextToken(); // eat then
+	  
+	  // parse the body
+	  BlockAST *then = this->ParseBlock(tok_elsif, tok_else);
+
+	  ConditionalElement *condelm = new ConditionalElement(cond, then);
+	  
+	  conds.push_back(condelm);
+
+	  if (CurTok != tok_elsif)
+		  break;
+	}
+	// TODO default else block to null
+	// parse the 'else' block
 	if (this->GetCurTok() != tok_else)
 		return BaseError::Throw<ExprAST*>("Expected 'else'");
 
 	this->GetNextToken(); // eat else
 
-	ExprAST *els = this->ParseExpression();
+	BlockAST *els = this->ParseBlock();
 
-	return new ConditionalExprAST(cond, then, els);
+	if (CurTok != tok_end)
+		return BaseError::Throw<ExprAST*>("Expected 'end' after 'else'");
+
+	this->GetNextToken(); // eat 'end'
+
+	return new ConditionalExprAST(conds, els);
 }
 
 ExprAST *Parser::ParseFor() {
@@ -192,13 +216,13 @@ ExprAST *Parser::ParsePrimary() {
 		this->GetNextToken(); // eat 'end'
 		return this->ParsePrimary();
 	case tok_eof:
+		BaseError::Throw<ExprAST*>("Unexpected EOF");
 		exit(0);
-		return this->ParsePrimary();
 	case '(':
 		return this->ParseParenExpr();
 	default:
 		return BaseError::Throw<ExprAST*>(str(format("Expected expression, token: %1%")
-								% CurTok).c_str());
+								% (Token)CurTok).c_str());
 	}
 }
 
@@ -282,9 +306,17 @@ FunctionAST *Parser::ParseDefinition() {
 }
 
 BlockAST *Parser::ParseBlock() {
+	return this->ParseBlock(tok_end, tok_end);
+}
+
+BlockAST *Parser::ParseBlock(int endOfBlock) {
+	return this->ParseBlock(endOfBlock, tok_end);
+}
+
+BlockAST *Parser::ParseBlock(int endOfBlock, int endOfBlockAlt) {
 	BlockAST *block = new BlockAST(123);
 
-	while (CurTok != tok_end) {
+	while (CurTok != endOfBlock && CurTok != endOfBlockAlt) {
 		block->AppendExpression(this->ParseExpression());
 		//  	if (CurTok != ';' && CurTok != tok_end)
 		//	  return ErrorB("Expected ';' or 'end' after expression");
@@ -293,8 +325,8 @@ BlockAST *Parser::ParseBlock() {
 		this->GetNextToken();
 	}
 
-	if (CurTok != tok_end)
-		return BaseError::Throw<BlockAST*>("Expected 'end' after block");
+	//if (CurTok != tok_end)
+	//	return BaseError::Throw<BlockAST*>("Expected 'end' after block");
 
 	// eat 'end'
 	//this->GetNextToken();

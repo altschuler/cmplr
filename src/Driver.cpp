@@ -13,6 +13,9 @@ void Driver::HandleImport() {
 	Driver *driver = new Driver(Gen);
 	driver->Go(imp->FileName + ".wtf");
 
+	// set lexer back to this drivers parser's, to give correct debug locations
+	BaseError::SetLexer(TheParser.GetLexer());
+
 	TheParser.GetNextToken();
 }
 

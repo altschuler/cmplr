@@ -1,12 +1,85 @@
 import 'examples/stdlib';
 
-def foo(n m)
-	for i = 0, i < n - 1 in 
-		for j = 0, j < m - 1 in 
-			pdoub(j);
-			pchar(32);
-		end
-	end
+def assert(id a b) 
+	if a = b then 0;
+	else pdoub(id); pchar(33); pdoub(a); pchar(59); pdoub(b); pchar(32); end;
 end
 
-foo(4, 4);
+## lang test
+# basic arithmetic
+assert(100, 2 + 2,		4);
+assert(101, 2 + -2, 	0);
+assert(102, 1 - 2,		-1);
+assert(103, 2 / 2, 		1);
+assert(104, 2 / 2, 		1);
+assert(105, 9 - (-3), 	12);
+assert(106, 9 * -3, 	-27);
+
+## conditional expressions
+assert(400, if 1 then 1; else 2; end, 1);
+assert(401, if 0 then 1; else 2; end, 2);
+assert(402, if 0 then 1; elsif 1 then 2; else 3; end, 2);
+assert(403, if 0 then 1; elsif 0 then 2; else 3; end, 3);
+
+## for loops
+def fuu() 
+	for i = 0, i < 5 in 
+		i; 
+	end
+end
+assert(500, fuu(), 5);
+
+## defs
+# return val
+def foo(a) a; end
+def bar(a b) a; b; end
+def baz(a b) a; b; end
+
+assert(201, foo(1), 1);
+assert(202, bar(1, 2), 2);
+assert(203, foo(bar(1, 2)), 2);
+
+# recursive
+def fib(n)
+	if n < 2 then 1; else fib(n - 1) + fib(n - 2); end;
+end
+assert(301, fib(1), 1);
+assert(302, fib(5), 8);
+assert(303, fib(10), 89);
+
+## operator test
+# - op
+assert(0, -1, 0 - 1);
+assert(0, -1, 1 - 2);
+
+# ! op
+assert(1, !1,		0);
+assert(2, !(5+4), 	0);
+assert(3, !0, 		1);
+assert(4, !(3-2-1), 1);
+
+# > op
+assert(5, 1 > 1, 0);
+assert(6, 0 > 0, 0);
+assert(7, 1 > 0, 1);
+assert(8, 8 > 0, 1);
+assert(9, 1 > 5, 0);
+
+# | op
+assert(10, 1 | 0, 1);
+assert(11, 0 | 1, 1);
+assert(12, 1 | 1, 1);
+assert(13, 0 | 0, 0);
+
+# & op
+assert(14, 1 & 0, 0);
+assert(15, 0 & 1, 0);
+assert(16, 1 & 1, 1);
+assert(17, 0 & 0, 0);
+
+# = op
+assert(18, 1 = 0, 0);
+assert(19, 0 = 1, 0);
+assert(20, 1 = 1, 1);
+assert(21, 0 = 0, 1);
+

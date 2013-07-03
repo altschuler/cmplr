@@ -25,6 +25,7 @@ public:
   Parser();
   int GetCurTok();
   int GetNextToken();
+  Lexer *GetLexer() { return &(this->TheLexer); }
 
   void SetInputFile(string file, int initialSeek);
 

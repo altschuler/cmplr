@@ -136,8 +136,6 @@ ExprAST *Parser::ParseConditional() {
 	if (CurTok != tok_end)
 		return BaseError::Throw<ExprAST*>("Expected 'end' after 'else'");
 
-	this->GetNextToken(); // eat 'end'
-
 	return new ConditionalExprAST(conds, els);
 }
 

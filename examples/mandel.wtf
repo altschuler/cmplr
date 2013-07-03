@@ -9,7 +9,7 @@ def printdensity(d)
     pchar(43);  # '+'
   else
     pchar(42); # '*'
-  end;
+  end
 end
     
 
@@ -22,7 +22,7 @@ def mandleconverger(real imag iters creal cimag)
     mandleconverger(real*real - imag*imag + creal,
                     2*real*imag + cimag,
                     iters+1, creal, cimag);
-  end;
+  end
 end
 
 # Return the number of iterations required for the iteration to escape

@@ -13,12 +13,18 @@ Codegen::Codegen(ExecutionEngine *execEngine, Module *module) : Builder(getGloba
   TheFPM = new FunctionPassManager(TheModule);
   TheFPM->add(new DataLayout(*ExecEngine->getDataLayout()));
   TheFPM->add(createBasicAliasAnalysisPass());
+  TheFPM->add(createPromoteMemoryToRegisterPass());
   TheFPM->add(createInstructionCombiningPass());
   TheFPM->add(createReassociatePass());
   TheFPM->add(createGVNPass());
-  //TheFPM->add(createCFGSimplificationPass());
+  TheFPM->add(createCFGSimplificationPass());
   TheFPM->doInitialization();
 }
+
+AllocaInst *Codegen::CreateEntryBlockAlloca(Function *func, string varName) {
+	IRBuilder<> builder(&func->getEntryBlock(), func->getEntryBlock().begin());
+	return builder.CreateAlloca(Type::getDoubleTy(getGlobalContext()), 0, varName.c_str());
+};
 
 Value *Codegen::Generate(ExprAST *expr) {
   switch (expr->GetASTType()) {
@@ -41,19 +47,35 @@ Value *Codegen::Generate(NumberExprAST *expr) {
 };
 
 Value *Codegen::Generate(VariableExprAST *expr) {
-  using namespace boost;
   string name = expr->GetName();
-  Value *val = NamedValues[name];
+  AllocaInst *alloca = NamedValues[name];
 
-  if (val)
-	return val;
-  else {
-	return BaseError::Throw<Value*>(str(format("Unknown variable '%1%'") % name).c_str());
-  }
+  if (alloca == 0)
+	return BaseError::Throw<Value*>(str(boost::format("Unknown variable '%1%'") % name).c_str());
+
+  return Builder.CreateLoad(alloca, name.c_str()); // XXX remove c_str
 };
 
 Value *Codegen::Generate(BinaryExprAST *expr) {
   using namespace boost;
+
+  // treat assignment separately
+  if (expr->GetOp() == '=') {
+	  VariableExprAST *identifier = dynamic_cast<VariableExprAST*>(expr->GetLHS());
+	  if (!identifier)
+		  return BaseError::Throw<Value*>("Left hand of assignment must be a variable");
+
+	  Value *val = this->Generate(expr->GetRHS());
+	  if (!val)
+		  return BaseError::Throw<Value*>("Invalid assignment value to variable");
+
+	  Value *variable = NamedValues[identifier->GetName()];
+	  if (!variable)
+		  return BaseError::Throw<Value*>("Unknown variable, cannot assign");
+
+	  Builder.CreateStore(val, variable);
+	  return val;
+  }
 
   Value *L = this->Generate(expr->GetLHS());
   Value *R = this->Generate(expr->GetRHS());
@@ -173,28 +195,30 @@ Value *Codegen::Generate(ConditionalExprAST *expr) {
 };
 
 Value *Codegen::Generate(ForExprAST *expr) {
+
+	string iterName = expr->GetIterName();
+  Function *func = Builder.GetInsertBlock()->getParent();
+
+  // create an alloca for the iterated variable
+  AllocaInst *alloca = this->CreateEntryBlockAlloca(func, iterName.c_str());
+
   Value *initVal = this->Generate(expr->GetInit());
   if (initVal == 0)
 	return 0;
 
-  Function *func = Builder.GetInsertBlock()->getParent();
+  Builder.CreateLoad(initVal, iterName.c_str());
+
   BasicBlock *preHeaderBlock = Builder.GetInsertBlock();
   BasicBlock *loopBlock = BasicBlock::Create(getGlobalContext(), "loop", func);
 
   Builder.CreateBr(loopBlock);
-  
-  // set insert to the loop
   Builder.SetInsertPoint(loopBlock);
 
-  // create the phi node and set initVal as entry
-  PHINode *phi = Builder.CreatePHI(Type::getDoubleTy(getGlobalContext()), 2, expr->GetIterName().c_str());
-  phi->addIncoming(initVal, preHeaderBlock);
-
   // save old value of same name as IterName (if any)
-  Value *oldVal = NamedValues[expr->GetIterName()];
-  NamedValues[expr->GetIterName()] = phi;
+  AllocaInst *oldVal = NamedValues[iterName];
+  NamedValues[iterName] = alloca;
 
-  // emit body code
+  // emit body code into loop block
   Value* bodyVal =  this->Generate(expr->GetBody());
   if (bodyVal == 0)
 	return 0;
@@ -211,11 +235,14 @@ Value *Codegen::Generate(ForExprAST *expr) {
 	stepVal = ConstantFP::get(getGlobalContext(), APFloat(1.0));
   }
 
-  Value *nextVal = Builder.CreateFAdd(phi, stepVal, "nextvar");
 
   Value *endCond = this->Generate(expr->GetEnd());
   if (endCond == 0)
 	return 0;
+
+  Value *currentVal = Builder.CreateLoad(alloca, iterName.c_str());
+  Value *nextVal = Builder.CreateFAdd(currentVal, stepVal, "nextvar");
+  Builder.CreateStore(nextVal, alloca);
 
   // booleanize end condition
   endCond = Builder.CreateFCmpONE(endCond, ConstantFP::get(getGlobalContext(), APFloat(0.0)), "loopcond");
@@ -229,39 +256,39 @@ Value *Codegen::Generate(ForExprAST *expr) {
   // start inserting code after loop
   Builder.SetInsertPoint(afterBlock);
 
-  phi->addIncoming(nextVal, loopEndBlock);
+  //phi->addIncoming(nextVal, loopEndBlock);
 
   // restore the saved variable
   if (oldVal) 
-	NamedValues[expr->GetIterName()] = oldVal;
+	NamedValues[iterName] = oldVal;
   else
-	NamedValues.erase(expr->GetIterName());
+	NamedValues.erase(iterName);
 
   return bodyVal;
   //return Constant::getNullValue(Type::getDoubleTy(getGlobalContext()));
 }
 
 Function *Codegen::Generate(PrototypeAST *proto) {
-  string Name = proto->GetName();
-  vector<string> Args = proto->GetArgs();
+  string funcName = proto->GetName();
+  vector<string> args = proto->GetArgs();
 
-  vector<Type*> Doubles(Args.size(), Type::getDoubleTy(getGlobalContext()));
-  FunctionType *FT = FunctionType::get(Type::getDoubleTy(getGlobalContext()), Doubles, false);
-  Function* F = Function::Create(FT, Function::ExternalLinkage, Name, TheModule);
+  vector<Type*> Doubles(args.size(), Type::getDoubleTy(getGlobalContext()));
+  FunctionType *funcType = FunctionType::get(Type::getDoubleTy(getGlobalContext()), Doubles, false);
+  Function* func = Function::Create(funcType, Function::ExternalLinkage, funcName, TheModule);
   
 
-  if (F->getName() != Name) 
+  if (func->getName() != funcName) 
 	{
-	  F->eraseFromParent();
-	  F = TheModule->getFunction(Name);
+	  func->eraseFromParent();
+	  func = TheModule->getFunction(funcName);
 	
-	  if (!F->empty()) 
+	  if (!func->empty()) 
 		{
 		  BaseError::Throw<Function*>("Redefinition of function");
 		  return 0;
 		}
 	
-	  if (F->arg_size() != Args.size()) 
+	  if (func->arg_size() != args.size()) 
 		{
 		  BaseError::Throw<Function*>("Redefinition of function with wrong number of arguments");
 		  return 0;
@@ -269,13 +296,14 @@ Function *Codegen::Generate(PrototypeAST *proto) {
 	}
   
   unsigned Idx = 0;
-  for (Function::arg_iterator AI = F->arg_begin(); Idx != Args.size(); ++AI, ++Idx)
+  for (Function::arg_iterator AI = func->arg_begin(); Idx != args.size(); ++AI, ++Idx)
 	{
-	  AI->setName(Args[Idx]);
-	  NamedValues[Args[Idx]] = AI;
+	  AllocaInst *alloca = this->CreateEntryBlockAlloca(func, args[Idx]);
+	  Builder.CreateStore(AI, alloca);
+	  NamedValues[args[Idx]] = alloca;
 	}
 
-  return F;
+  return func;
 };
 
 
@@ -300,6 +328,7 @@ Function *Codegen::Generate(FunctionAST *funcAst) {
   }
 	
   func->eraseFromParent();
+
   return 0;
 };
 
@@ -334,46 +363,47 @@ Value *Codegen::Generate(UnaryExprAST *expr) {
 Function *Codegen::Generate(OperatorAST *opr) {
   NamedValues.clear();
 
-  string Name = (opr->IsBinary() ? "binary" : "unary") + opr->GetOp();
-  vector<string> Args = opr->GetArgs();
+  string opName = (opr->IsBinary() ? "binary" : "unary") + opr->GetOp();
+  vector<string> args = opr->GetArgs();
 
-  vector<Type*> Doubles(Args.size(), Type::getDoubleTy(getGlobalContext()));
-  FunctionType *FT = FunctionType::get(Type::getDoubleTy(getGlobalContext()), Doubles, false);
-  Function* F = Function::Create(FT, Function::ExternalLinkage, Name, TheModule);
+  vector<Type*> Doubles(args.size(), Type::getDoubleTy(getGlobalContext()));
+  FunctionType *funcType = FunctionType::get(Type::getDoubleTy(getGlobalContext()), Doubles, false);
+  Function* func = Function::Create(funcType, Function::ExternalLinkage, opName, TheModule);
   
-  if (F->getName() != Name) {
-	F->eraseFromParent();
-	F = TheModule->getFunction(Name);
+  if (func->getName() != opName) {
+	func->eraseFromParent();
+	func = TheModule->getFunction(opName);
 	
-	if (!F->empty()) {
+	if (!func->empty()) {
 		BaseError::Throw<Function*>("Redefinition of operator");
 	  return 0;
 	}
 	
-	if (F->arg_size() != Args.size()) {
+	if (func->arg_size() != args.size()) {
 		BaseError::Throw<Function*>("Redefinition of operator with wrong number of arguments");
 	  	return 0;
 	}
   }
   
   unsigned Idx = 0;
-  for (Function::arg_iterator AI = F->arg_begin(); Idx != Args.size(); ++AI, ++Idx) {
-	AI->setName(Args[Idx]);
-	NamedValues[Args[Idx]] = AI;
+  for (Function::arg_iterator AI = func->arg_begin(); Idx != args.size(); ++AI, ++Idx) {
+	  AllocaInst *alloca = this->CreateEntryBlockAlloca(func, opName);
+	  Builder.CreateStore(AI, alloca);
+	NamedValues[args[Idx]] = alloca;
   }
   
   // add the body 
-  BasicBlock *block = BasicBlock::Create(getGlobalContext(), "opfunc", F);
+  BasicBlock *block = BasicBlock::Create(getGlobalContext(), "opfunc", func);
   Builder.SetInsertPoint(block);
 
   Value *retVal = this->Generate(opr->GetBody());
   if (retVal) {
 	Builder.CreateRet(retVal);
-	verifyFunction(*F);
-	TheFPM->run(*F);
-	return F;
+	verifyFunction(*func);
+	TheFPM->run(*func);
+	return func;
   }
 	
-  F->eraseFromParent();
+  func->eraseFromParent();
   return 0;
 };

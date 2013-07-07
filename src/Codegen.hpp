@@ -22,7 +22,7 @@
 using namespace llvm;
 
 class Codegen {
-  map<string, Value*> NamedValues;
+  map<string, AllocaInst*> NamedValues;
   IRBuilder<> Builder;
   Module *TheModule;
   FunctionPassManager *TheFPM;
@@ -33,6 +33,8 @@ public:
 
   Module *GetModule() { return this->TheModule; }
   ExecutionEngine *GetExecEngine() { return this->ExecEngine; }
+
+  AllocaInst *CreateEntryBlockAlloca(Function *func, string varName);
 
   Value *Generate(ExprAST *expr);
   Value *Generate(NumberExprAST *expr);

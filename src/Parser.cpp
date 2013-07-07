@@ -10,6 +10,7 @@ using namespace boost;
 map<char, int> Parser::BinopPrecedence;
 
 Parser::Parser() {
+	BinopPrecedence['='] = 2;
 	BinopPrecedence['<'] = 10;
 	BinopPrecedence['+'] = 20;
 	BinopPrecedence['-'] = 20;

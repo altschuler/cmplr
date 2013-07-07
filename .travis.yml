@@ -13,4 +13,5 @@ env:
 compiler:
   - clang
   
-script: make noopti
+script: 
+  - make noopti

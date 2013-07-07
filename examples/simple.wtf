@@ -1,0 +1,9 @@
+extern pdoub(a);
+
+def foo(n)
+	pdoub(n);
+	n = 10;
+	pdoub(n);
+end
+
+pdoub(foo(1));

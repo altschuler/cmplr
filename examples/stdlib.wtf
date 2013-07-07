@@ -22,11 +22,11 @@ op & 5 (l r)
    !(!l | !r); 
 end
 
-op = 4 (l r) 
-   if l < r then 0; 
-   elsif r < l then 0; 
-   else 1; end 
-end
+#op = 4 (l r) 
+#   if l < r then 0; 
+#   elsif r < l then 0; 
+#   else 1; end 
+#end
 
 # some useful functions
 extern sin(a);

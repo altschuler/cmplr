@@ -78,8 +78,8 @@ assert(16, 1 & 1, 1);
 assert(17, 0 & 0, 0);
 
 # = op
-assert(18, 1 = 0, 0);
-assert(19, 0 = 1, 0);
-assert(20, 1 = 1, 1);
-assert(21, 0 = 0, 1);
+#assert(18, 1 = 0, 0);
+#assert(19, 0 = 1, 0);
+#assert(20, 1 = 1, 1);
+#assert(21, 0 = 0, 1);
 

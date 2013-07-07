@@ -14,4 +14,4 @@ compiler:
   - clang
   
 script: 
-  - make noopti
+  - mkdir bin && make noopti

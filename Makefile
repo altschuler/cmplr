@@ -8,8 +8,7 @@ dbuild:
 		`$(LLVM_CONF) --ldflags` \
 		-o bin/wtf
 noopti:
-	clang++ -std=c++0x -g -rdynamic -I lib $(FILES)  \
+	clang++ -Wall -std=c++0x -g -rdynamic -I lib $(FILES)  \
 		`$(LLVM_CONF) --cppflags --libs core jit native` \
 		`$(LLVM_CONF) --ldflags` \
-		 -O0 -o bin/wtf
-
+		 -O3 -o bin/wtf

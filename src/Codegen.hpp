@@ -51,6 +51,7 @@ public:
   Function *Generate(FunctionAST *func);
 
   void CreateArgumentAllocas(PrototypeAST *proto, Function *func);
+  void CreateArgumentAllocas(vector<string> args, Function *func);
 };
 
 #endif

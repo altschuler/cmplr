@@ -206,9 +206,8 @@ Value *Codegen::Generate(ForExprAST *expr) {
   if (initVal == 0)
 	return 0;
 
-  Builder.CreateLoad(initVal, iterName.c_str());
+  Builder.CreateStore(initVal, alloca);
 
-  BasicBlock *preHeaderBlock = Builder.GetInsertBlock();
   BasicBlock *loopBlock = BasicBlock::Create(getGlobalContext(), "loop", func);
 
   Builder.CreateBr(loopBlock);
@@ -247,7 +246,6 @@ Value *Codegen::Generate(ForExprAST *expr) {
   // booleanize end condition
   endCond = Builder.CreateFCmpONE(endCond, ConstantFP::get(getGlobalContext(), APFloat(0.0)), "loopcond");
 
-  BasicBlock *loopEndBlock = Builder.GetInsertBlock();
   BasicBlock *afterBlock = BasicBlock::Create(getGlobalContext(), "afterloop", func);
   
   // create the loop ending branch
@@ -265,60 +263,57 @@ Value *Codegen::Generate(ForExprAST *expr) {
 	NamedValues.erase(iterName);
 
   return bodyVal;
-  //return Constant::getNullValue(Type::getDoubleTy(getGlobalContext()));
 }
 
 Function *Codegen::Generate(PrototypeAST *proto) {
-  string funcName = proto->GetName();
-  vector<string> args = proto->GetArgs();
+	string funcName = proto->GetName();
+	vector<string> args = proto->GetArgs();
 
-  vector<Type*> Doubles(args.size(), Type::getDoubleTy(getGlobalContext()));
-  FunctionType *funcType = FunctionType::get(Type::getDoubleTy(getGlobalContext()), Doubles, false);
-  Function* func = Function::Create(funcType, Function::ExternalLinkage, funcName, TheModule);
-  
+	vector<Type*> Doubles(args.size(), Type::getDoubleTy(getGlobalContext()));
+	FunctionType *funcType = FunctionType::get(
+			Type::getDoubleTy(getGlobalContext()), Doubles, false);
+	Function* func = Function::Create(funcType, Function::ExternalLinkage,
+			funcName, TheModule);
 
-  if (func->getName() != funcName) 
-	{
-	  func->eraseFromParent();
-	  func = TheModule->getFunction(funcName);
-	
-	  if (!func->empty()) 
-		{
-		  BaseError::Throw<Function*>("Redefinition of function");
-		  return 0;
+	if (func->getName() != funcName) {
+		func->eraseFromParent();
+		func = TheModule->getFunction(funcName);
+
+		if (!func->empty()) {
+			BaseError::Throw<Function*>("Redefinition of function");
+			return 0;
 		}
-	
-	  if (func->arg_size() != args.size()) 
-		{
-		  BaseError::Throw<Function*>("Redefinition of function with wrong number of arguments");
-		  return 0;
+
+		if (func->arg_size() != args.size()) {
+			BaseError::Throw<Function*>("Redefinition of function with wrong number of arguments");
+			return 0;
 		}
 	}
-  
-  unsigned Idx = 0;
-  for (Function::arg_iterator AI = func->arg_begin(); Idx != args.size(); ++AI, ++Idx)
-	{
-	  AI->setName(args[Idx]);
-//	  AllocaInst *alloca = this->CreateEntryBlockAlloca(func, args[Idx]);
-//	  Builder.CreateStore(AI, alloca);
-//	  NamedValues[args[Idx]] = alloca;
+
+	unsigned idx = 0;
+	for (Function::arg_iterator iterItem = func->arg_begin(); idx != args.size(); ++iterItem, ++idx) {
+		iterItem->setName(args[idx]);
 	}
 
-  return func;
+	return func;
 };
 
-void Codegen::CreateArgumentAllocas(PrototypeAST *proto, Function *func) {
+void Codegen::CreateArgumentAllocas(vector<string> args, Function *func) {
 	Function::arg_iterator AI = func->arg_begin();
-	for (unsigned Idx = 0, e = proto->GetArgs().size(); Idx != e; ++Idx, ++AI) {
+	for (unsigned Idx = 0, e = args.size(); Idx != e; ++Idx, ++AI) {
 		// Create an alloca for this variable.
-		AllocaInst *Alloca = this->CreateEntryBlockAlloca(func, proto->GetArgs()[Idx]);
+		AllocaInst *Alloca = this->CreateEntryBlockAlloca(func, args[Idx]);
 
 		// Store the initial value into the alloca.
 		Builder.CreateStore(AI, Alloca);
 
 		// Add arguments to variable symbol table.
-		NamedValues[proto->GetArgs()[Idx]] = Alloca;
+		NamedValues[args[Idx]] = Alloca;
 	}
+}
+
+void Codegen::CreateArgumentAllocas(PrototypeAST *proto, Function *func) {
+	this->CreateArgumentAllocas(proto->GetArgs(), func);
 }
 
 Function *Codegen::Generate(FunctionAST *funcAst) {
@@ -403,14 +398,14 @@ Function *Codegen::Generate(OperatorAST *opr) {
   
   unsigned Idx = 0;
   for (Function::arg_iterator AI = func->arg_begin(); Idx != args.size(); ++AI, ++Idx) {
-	  AllocaInst *alloca = this->CreateEntryBlockAlloca(func, opName);
-	  Builder.CreateStore(AI, alloca);
-	NamedValues[args[Idx]] = alloca;
+	  AI->setName(args[Idx]);
   }
   
   // add the body 
   BasicBlock *block = BasicBlock::Create(getGlobalContext(), "opfunc", func);
   Builder.SetInsertPoint(block);
+
+  this->CreateArgumentAllocas(args, func);
 
   Value *retVal = this->Generate(opr->GetBody());
   if (retVal) {

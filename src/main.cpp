@@ -11,36 +11,27 @@
 static Driver *driver;
 
 int main(int argc, const char *argv[]) {
-  InitializeNativeTarget();
-  
-  LLVMContext &Context = getGlobalContext();
-  Module *module = new Module("WTFJIT", Context);
+	InitializeNativeTarget();
 
-  string ErrStr;
-  ExecutionEngine *execEngine = EngineBuilder(module).setErrorStr(&ErrStr).create();
-  if (!execEngine) {
-	fprintf(stderr, "Could not create ExecutionEngine: %s\n", ErrStr.c_str());
-	exit(1);
-  }
-  
-  driver = new Driver(new Codegen(execEngine, module));
+	LLVMContext &Context = getGlobalContext();
+	Module *module = new Module("WTFJIT", Context);
 
-  string inputFile(argv[1]);
-  
-  driver->Go(inputFile);
+	string ErrStr;
+	ExecutionEngine *execEngine = EngineBuilder(module).setErrorStr( &ErrStr).create();
+	if ( !execEngine) {
+		fprintf(stderr, "Could not create ExecutionEngine: %s\n", ErrStr.c_str());
+		exit(1);
+	}
 
-  // hax to flush cout
-  pline();
+	driver = new Driver(new Codegen(execEngine, module));
 
-  return 0;
+	string inputFile(argv[1]);
+
+	driver->Go(inputFile);
+
+	// hax to flush cout
+	pline();
+
+	return 0;
 }
-
-
-
-
-
-
-
-
-
 

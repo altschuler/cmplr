@@ -8,8 +8,10 @@
 
 class BaseError {
 	static Lexer *Lex;
-public:
-	static void SetLexer(Lexer *lexer) { BaseError::Lex = lexer; };
+	public:
+	static void SetLexer(Lexer *lexer) {
+		BaseError::Lex = lexer;
+	}
 
 	template<class T>
 	static T Throw(string message) {
@@ -21,15 +23,6 @@ public:
 		return 0;
 	}
 };
-
-// Error helpers
-ExprAST *Error(const char *Str);
-PrototypeAST *ErrorP(const char *Str);
-FunctionAST *ErrorF(const char *Str);
-OperatorAST *ErrorO(const char *Str);
-Value *ErrorV(const char *Str);
-ImportAST *ErrorI(const char *Str);
-BlockAST *ErrorB(const char *Str);
 
 #endif
 

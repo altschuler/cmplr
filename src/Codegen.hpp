@@ -22,46 +22,41 @@
 using namespace llvm;
 
 class Codegen {
-  map<string, AllocaInst*> NamedValues;
-  IRBuilder<> Builder;
-  Module *TheModule;
-  FunctionPassManager *TheFPM;
-  ExecutionEngine *ExecEngine;
+	map<string, AllocaInst*> NamedValues;
+	IRBuilder<> Builder;
+	Module *TheModule;
+	FunctionPassManager *TheFPM;
+	ExecutionEngine *ExecEngine;
 
 public:
-  Codegen(ExecutionEngine *execEngine, Module *module);
+	Codegen(ExecutionEngine *execEngine, Module *module);
 
-  Module *GetModule() { return this->TheModule; }
-  ExecutionEngine *GetExecEngine() { return this->ExecEngine; }
+	Module *GetModule() {
+		return this->TheModule;
+	}
+	ExecutionEngine *GetExecEngine() {
+		return this->ExecEngine;
+	}
 
-  AllocaInst *CreateEntryBlockAlloca(Function *func, string varName);
+	AllocaInst *CreateEntryBlockAlloca(Function *func, string varName);
 
-  Value *Generate(ExprAST *expr);
-  Value *Generate(NumberExprAST *expr);
-  Value *Generate(VariableExprAST *expr);
-  Value *Generate(BinaryExprAST *expr);
-  Value *Generate(UnaryExprAST *expr);
-  Value *Generate(CallExprAST *expr);
-  Value *Generate(ConditionalExprAST *expr);
-  Value *Generate(ForExprAST *expr);
-  Value *Generate(BlockAST *block);
+	Value *Generate(ExprAST *expr);
+	Value *Generate(NumberExprAST *expr);
+	Value *Generate(VariableExprAST *expr);
+	Value *Generate(BinaryExprAST *expr);
+	Value *Generate(UnaryExprAST *expr);
+	Value *Generate(CallExprAST *expr);
+	Value *Generate(ConditionalExprAST *expr);
+	Value *Generate(ForExprAST *expr);
+	Value *Generate(BlockAST *block);
 
-  Function *Generate(OperatorAST *expr);
-  Function *Generate(PrototypeAST *proto);
-  Function *Generate(FunctionAST *func);
+	Function *Generate(OperatorAST *expr);
+	Function *Generate(PrototypeAST *proto);
+	Function *Generate(FunctionAST *func);
 
-  void CreateArgumentAllocas(PrototypeAST *proto, Function *func);
-  void CreateArgumentAllocas(vector<string> args, Function *func);
+	void CreateArgumentAllocas(PrototypeAST *proto, Function *func);
+	void CreateArgumentAllocas(vector<string> args, Function *func);
 };
 
 #endif
-
-
-
-
-
-
-
-
-
 

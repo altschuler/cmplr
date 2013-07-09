@@ -19,20 +19,22 @@ using namespace std;
 using namespace llvm;
 
 class Driver {
-  Parser TheParser;
-  Codegen *Gen;
-  string CurrentFile;
+	Parser TheParser;
+	Codegen *Gen;
+	string CurrentFile;
 
 public:
-  Driver(Codegen *codegen) : Gen(codegen) {}
-  void Go(string file);
+	Driver(Codegen *codegen)
+			: Gen(codegen) {
+	}
+	void Go(string file);
 
 private:
-  void HandleDefinition();
-  void HandleOperator();
-  void HandleExtern();
-  void HandleTopLevelExpr();
-  void HandleImport();
+	void HandleDefinition();
+	void HandleOperator();
+	void HandleExtern();
+	void HandleTopLevelExpr();
+	void HandleImport();
 };
 
 #endif

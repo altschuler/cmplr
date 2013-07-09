@@ -3,8 +3,8 @@
 void Driver::HandleDefinition() {
 	FunctionAST *func = TheParser.ParseDefinition();
 	Function *code = Gen->Generate(func);
-	if (!(func && code))
-		TheParser.GetNextToken();
+	if ( !(func && code))
+	TheParser.GetNextToken();
 }
 
 void Driver::HandleImport() {
@@ -22,16 +22,16 @@ void Driver::HandleImport() {
 void Driver::HandleOperator() {
 	OperatorAST *func = TheParser.ParseOperator();
 	Function *code = Gen->Generate(func);
-	if (!(func && code))
-		TheParser.GetNextToken();
+	if ( !(func && code))
+	TheParser.GetNextToken();
 }
 
 void Driver::HandleExtern() {
 	PrototypeAST *ext = TheParser.ParseExtern();
 	Function *code = Gen->Generate(ext);
 	// try recovering by ignoring current token
-	if (!(ext && code))
-		TheParser.GetNextToken();
+	if ( !(ext && code))
+	TheParser.GetNextToken();
 }
 
 void Driver::HandleTopLevelExpr() {
@@ -43,8 +43,9 @@ void Driver::HandleTopLevelExpr() {
 		void *funcPtr = execEngine->getPointerToFunction(code);
 		double (*fptr)() = (double (*)())(intptr_t)funcPtr;
 		fptr();
-	} else
-		TheParser.GetNextToken();
+	}
+	else
+	TheParser.GetNextToken();
 }
 
 void Driver::Go(string file) {
@@ -55,27 +56,27 @@ void Driver::Go(string file) {
 
 	while (1) {
 		switch (TheParser.GetCurTok()) {
-		case tok_eof:
-			return;
-		case tok_def:
-			HandleDefinition();
-			break;
-		case tok_extern:
-			HandleExtern();
-			break;
-		case tok_op:
-			HandleOperator();
-			break;
-		case tok_import:
-			HandleImport();
-			break;
-		case tok_end:
-		case ';':
-			TheParser.GetNextToken(); // eat ';' or 'end'
-			break;
-		default:
-			HandleTopLevelExpr();
-			break;
+			case tok_eof:
+				return;
+			case tok_def:
+				HandleDefinition();
+				break;
+			case tok_extern:
+				HandleExtern();
+				break;
+			case tok_op:
+				HandleOperator();
+				break;
+			case tok_import:
+				HandleImport();
+				break;
+			case tok_end:
+				case ';':
+				TheParser.GetNextToken(); // eat ';' or 'end'
+				break;
+			default:
+				HandleTopLevelExpr();
+				break;
 		}
 	}
 }

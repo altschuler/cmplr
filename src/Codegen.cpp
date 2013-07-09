@@ -3,132 +3,159 @@
 using namespace llvm;
 using namespace std;
 
-Codegen::Codegen(ExecutionEngine *execEngine, Module *module) : Builder(getGlobalContext()) {	
-  InitializeNativeTarget();
+Codegen::Codegen(ExecutionEngine *execEngine, Module *module)
+		: Builder(getGlobalContext()) {
+	InitializeNativeTarget();
 
-  TheModule = module;
-  ExecEngine = execEngine;
+	TheModule = module;
+	ExecEngine = execEngine;
 
-  // Set up function optimization
-  TheFPM = new FunctionPassManager(TheModule);
-  TheFPM->add(new DataLayout(*ExecEngine->getDataLayout()));
-  TheFPM->add(createBasicAliasAnalysisPass());
-  TheFPM->add(createPromoteMemoryToRegisterPass());
-  TheFPM->add(createInstructionCombiningPass());
-  TheFPM->add(createReassociatePass());
-  TheFPM->add(createGVNPass());
-  TheFPM->add(createCFGSimplificationPass());
-  TheFPM->doInitialization();
+	// Set up function optimization
+	TheFPM = new FunctionPassManager(TheModule);
+	TheFPM->add(new DataLayout( *ExecEngine->getDataLayout()));
+	TheFPM->add(createBasicAliasAnalysisPass());
+	TheFPM->add(createPromoteMemoryToRegisterPass());
+	TheFPM->add(createInstructionCombiningPass());
+	TheFPM->add(createReassociatePass());
+	TheFPM->add(createGVNPass());
+	TheFPM->add(createCFGSimplificationPass());
+	TheFPM->doInitialization();
 }
 
 AllocaInst *Codegen::CreateEntryBlockAlloca(Function *func, string varName) {
-	IRBuilder<> builder(&func->getEntryBlock(), func->getEntryBlock().begin());
+	IRBuilder<> builder( &func->getEntryBlock(), func->getEntryBlock().begin());
 	return builder.CreateAlloca(Type::getDoubleTy(getGlobalContext()), 0, varName.c_str());
-};
+}
 
 Value *Codegen::Generate(ExprAST *expr) {
-  switch (expr->GetASTType()) {
-  case ASTNumberExpr: return this->Generate((NumberExprAST *)expr); break;
-  case ASTVariableExpr: return this->Generate((VariableExprAST *)expr); break;
-  case ASTBinaryExpr: return this->Generate((BinaryExprAST *)expr); break;
-  case ASTCallExpr: return this->Generate((CallExprAST *)expr); break;
-  case ASTConditionalExpr: return this->Generate((ConditionalExprAST *)expr); break;
-  case ASTForExpr: return this->Generate((ForExprAST *)expr); break;
-  case ASTUnary: return this->Generate((UnaryExprAST *)expr); break;
-  case ASTPrototype: return this->Generate((PrototypeAST *)expr); break;
-  case ASTFunction: return this->Generate((FunctionAST *)expr); break;
-  case ASTOperator: return this->Generate((OperatorAST *)expr); break;
-  case ASTBlock: return 0;
-  }
+	switch (expr->GetASTType()) {
+		case ASTNumberExpr:
+			return this->Generate((NumberExprAST *) expr);
+			break;
+		case ASTVariableExpr:
+			return this->Generate((VariableExprAST *) expr);
+			break;
+		case ASTBinaryExpr:
+			return this->Generate((BinaryExprAST *) expr);
+			break;
+		case ASTCallExpr:
+			return this->Generate((CallExprAST *) expr);
+			break;
+		case ASTConditionalExpr:
+			return this->Generate((ConditionalExprAST *) expr);
+			break;
+		case ASTForExpr:
+			return this->Generate((ForExprAST *) expr);
+			break;
+		case ASTUnary:
+			return this->Generate((UnaryExprAST *) expr);
+			break;
+		case ASTPrototype:
+			return this->Generate((PrototypeAST *) expr);
+			break;
+		case ASTFunction:
+			return this->Generate((FunctionAST *) expr);
+			break;
+		case ASTOperator:
+			return this->Generate((OperatorAST *) expr);
+			break;
+		case ASTBlock:
+			return 0;
+	}
 }
 
 Value *Codegen::Generate(NumberExprAST *expr) {
-  return ConstantFP::get(getGlobalContext(), APFloat(expr->GetVal()));
-};
+	return ConstantFP::get(getGlobalContext(), APFloat(expr->GetVal()));
+}
 
 Value *Codegen::Generate(VariableExprAST *expr) {
-  string name = expr->GetName();
-  AllocaInst *alloca = NamedValues[name];
+	string name = expr->GetName();
+	AllocaInst *alloca = NamedValues[name];
 
-  if (alloca == 0)
+	if (alloca == 0)
 	return BaseError::Throw<Value*>(str(boost::format("Unknown variable '%1%'") % name).c_str());
 
-  return Builder.CreateLoad(alloca, name.c_str()); // XXX remove c_str
-};
+	return Builder.CreateLoad(alloca, name.c_str()); // XXX remove c_str
+}
 
 Value *Codegen::Generate(BinaryExprAST *expr) {
-  using namespace boost;
+	using namespace boost;
 
-  // treat assignment separately
-  if (expr->GetOp() == '=') {
-	  VariableExprAST *identifier = dynamic_cast<VariableExprAST*>(expr->GetLHS());
-	  if (!identifier)
-		  return BaseError::Throw<Value*>("Left hand of assignment must be a variable");
+	// treat assignment separately
+	if (expr->GetOp() == '=') {
+		VariableExprAST *identifier = dynamic_cast<VariableExprAST*>(expr->GetLHS());
+		if ( !identifier)
+		return BaseError::Throw<Value*>("Left hand of assignment must be a variable");
 
-	  Value *val = this->Generate(expr->GetRHS());
-	  if (!val)
-		  return BaseError::Throw<Value*>("Invalid assignment value to variable");
+		Value *val = this->Generate(expr->GetRHS());
+		if ( !val)
+		return BaseError::Throw<Value*>("Invalid assignment value to variable");
 
-	  Value *variable = NamedValues[identifier->GetName()];
-	  if (!variable)
-		  return BaseError::Throw<Value*>("Unknown variable, cannot assign");
+		Value *variable = NamedValues[identifier->GetName()];
+		if ( !variable)
+		return BaseError::Throw<Value*>("Unknown variable, cannot assign");
 
-	  Builder.CreateStore(val, variable);
-	  return val;
-  }
+		Builder.CreateStore(val, variable);
+		return val;
+	}
 
-  Value *L = this->Generate(expr->GetLHS());
-  Value *R = this->Generate(expr->GetRHS());
+	Value *L = this->Generate(expr->GetLHS());
+	Value *R = this->Generate(expr->GetRHS());
 
-  if (L == 0 || R == 0)
+	if (L == 0 || R == 0)
 	return 0;
 
-  switch (expr->GetOp()) {
-  case '+': return Builder.CreateFAdd(L, R, "addtmp");
-  case '-': return Builder.CreateFSub(L, R, "subtmp");
-  case '*': return Builder.CreateFMul(L, R, "multmp");
-  case '/': return Builder.CreateFDiv(L, R, "divtmp");
-  case '<': 
-	L = Builder.CreateFCmpULT(L, R, "cmptmp");
-	return Builder.CreateUIToFP(L, Type::getDoubleTy(getGlobalContext()), "booltmp");
-  default: break;
-  }
+	switch (expr->GetOp()) {
+		case '+':
+			return Builder.CreateFAdd(L, R, "addtmp");
+		case '-':
+			return Builder.CreateFSub(L, R, "subtmp");
+		case '*':
+			return Builder.CreateFMul(L, R, "multmp");
+		case '/':
+			return Builder.CreateFDiv(L, R, "divtmp");
+		case '<':
+			L = Builder.CreateFCmpULT(L, R, "cmptmp");
+			return Builder.CreateUIToFP(L, Type::getDoubleTy(getGlobalContext()), "booltmp");
+		default:
+			break;
+	}
 
-  Function *opFunc = TheModule->getFunction("binary" + expr->GetOp());
-  if (!opFunc) 
+	Function *opFunc = TheModule->getFunction("binary" + expr->GetOp());
+	if ( !opFunc)
 	return BaseError::Throw<Value*>(str(format("Unknown binary operator '%1%'") % expr->GetOp()));
 
-  Value *args[2] = {L, R};
-  return Builder.CreateCall(opFunc, args, "binop");
-};
+	Value *args[2] = { L, R };
+	return Builder.CreateCall(opFunc, args, "binop");
+}
 
 Value *Codegen::Generate(CallExprAST *expr) {
-  using namespace boost;
+	using namespace boost;
 
-  string callee = expr->GetCallee();
-  vector<ExprAST*> args = expr->GetArgs();
+	string callee = expr->GetCallee();
+	vector<ExprAST*> args = expr->GetArgs();
 
-  Function *CalleeF = TheModule->getFunction(callee);
-  if (CalleeF == 0) 
+	Function *CalleeF = TheModule->getFunction(callee);
+	if (CalleeF == 0)
 	return BaseError::Throw<Value*>(str(format("Unknown function '%1%'") % callee));
 
-  if (CalleeF->arg_size() != args.size())
+	if (CalleeF->arg_size() != args.size())
 	return BaseError::Throw<Value*>(str(boost::format("Wrong number of arguments in function %1%; got %2%, %3% expected")
-						% callee.c_str()
-						% args.size()
-						% CalleeF->arg_size()));
+			% callee.c_str()
+			% args.size()
+			% CalleeF->arg_size()));
 
-  vector<Value*> ArgsV;
-  for (unsigned i = 0, e = args.size(); i != e; ++i) {
-	Value *arg = this->Generate(args[i]);
-	ArgsV.push_back(arg);
-	if (ArgsV.back() == 0)
-	  return 0;
-  }
+	vector<Value*> ArgsV;
+	for (unsigned i = 0, e = args.size(); i != e; ++i) {
+		Value *arg = this->Generate(args[i]);
+		ArgsV.push_back(arg);
+		if (ArgsV.back() == 0)
+		return 0;
+	}
 
-  ArrayRef<Value*> *argArr = new ArrayRef<Value*>(ArgsV);
-  return Builder.CreateCall(CalleeF, *argArr, "tmpcall");
-};
+	ArrayRef<Value*> *argArr = new ArrayRef<Value*>(ArgsV);
+	return Builder.CreateCall(CalleeF, *argArr, "tmpcall");
+}
 
 Value *Codegen::Generate(ConditionalExprAST *expr) {
 	vector<ConditionalElement*> conds = expr->GetConds();
@@ -150,7 +177,7 @@ Value *Codegen::Generate(ConditionalExprAST *expr) {
 		Value *condVal = this->Generate(elm->GetCond());
 		condVal = Builder.CreateFCmpONE(condVal, ConstantFP::get(getGlobalContext(), APFloat(0.0)), "ifcond");
 		if (condVal == 0)
-			return BaseError::Throw<Value*>("Condition is undefined");
+		return BaseError::Throw<Value*>("Condition is undefined");
 
 		BasicBlock *condBlock = BasicBlock::Create(getGlobalContext(), "then");
 		BasicBlock *nextBlock = BasicBlock::Create(getGlobalContext(), "else");
@@ -177,7 +204,7 @@ Value *Codegen::Generate(ConditionalExprAST *expr) {
 	// 'else' block
 	Value *elseVal = this->Generate(expr->GetElse());
 	if (elseVal == 0)
-		return BaseError::Throw<Value*>("'else' value is undefined");
+	return BaseError::Throw<Value*>("'else' value is undefined");
 
 	Builder.CreateBr(mergeBlock);
 	//elseBlock = Builder.GetInsertBlock();
@@ -192,77 +219,73 @@ Value *Codegen::Generate(ConditionalExprAST *expr) {
 //	func->viewCFG();
 
 	return phi;
-};
+}
 
 Value *Codegen::Generate(ForExprAST *expr) {
-
 	string iterName = expr->GetIterName();
-  Function *func = Builder.GetInsertBlock()->getParent();
+	Function *func = Builder.GetInsertBlock()->getParent();
 
-  // create an alloca for the iterated variable
-  AllocaInst *alloca = this->CreateEntryBlockAlloca(func, iterName.c_str());
+	// create an alloca for the iterated variable
+	AllocaInst *alloca = this->CreateEntryBlockAlloca(func, iterName.c_str());
 
-  Value *initVal = this->Generate(expr->GetInit());
-  if (initVal == 0)
+	Value *initVal = this->Generate(expr->GetInit());
+	if (initVal == 0)
 	return 0;
 
-  Builder.CreateStore(initVal, alloca);
+	Builder.CreateStore(initVal, alloca);
 
-  BasicBlock *loopBlock = BasicBlock::Create(getGlobalContext(), "loop", func);
+	BasicBlock *loopBlock = BasicBlock::Create(getGlobalContext(), "loop", func);
 
-  Builder.CreateBr(loopBlock);
-  Builder.SetInsertPoint(loopBlock);
+	Builder.CreateBr(loopBlock);
+	Builder.SetInsertPoint(loopBlock);
 
-  // save old value of same name as IterName (if any)
-  AllocaInst *oldVal = NamedValues[iterName];
-  NamedValues[iterName] = alloca;
+	// save old value of same name as IterName (if any)
+	AllocaInst *oldVal = NamedValues[iterName];
+	NamedValues[iterName] = alloca;
 
-  // emit body code into loop block
-  Value* bodyVal =  this->Generate(expr->GetBody());
-  if (bodyVal == 0)
+	// emit body code into loop block
+	Value* bodyVal = this->Generate(expr->GetBody());
+	if (bodyVal == 0)
 	return 0;
 
-  // handle step
-  Value *stepVal;
-  if (expr->GetStep()) {
-	stepVal = this->Generate(expr->GetStep());
-	if (stepVal == 0)
-	  return 0;
-  } 
-  // if step is not specified, use ++
-  else {
-	stepVal = ConstantFP::get(getGlobalContext(), APFloat(1.0));
-  }
+	// handle step
+	Value *stepVal;
+	if (expr->GetStep()) {
+		stepVal = this->Generate(expr->GetStep());
+		if (stepVal == 0)
+		return 0;
+	}
+	// if step is not specified, use ++
+	else {
+		stepVal = ConstantFP::get(getGlobalContext(), APFloat(1.0));
+	}
 
-
-  Value *endCond = this->Generate(expr->GetEnd());
-  if (endCond == 0)
+	Value *endCond = this->Generate(expr->GetEnd());
+	if (endCond == 0)
 	return 0;
 
-  Value *currentVal = Builder.CreateLoad(alloca, iterName.c_str());
-  Value *nextVal = Builder.CreateFAdd(currentVal, stepVal, "nextvar");
-  Builder.CreateStore(nextVal, alloca);
+	Value *currentVal = Builder.CreateLoad(alloca, iterName.c_str());
+	Value *nextVal = Builder.CreateFAdd(currentVal, stepVal, "nextvar");
+	Builder.CreateStore(nextVal, alloca);
 
-  // booleanize end condition
-  endCond = Builder.CreateFCmpONE(endCond, ConstantFP::get(getGlobalContext(), APFloat(0.0)), "loopcond");
+	// booleanize end condition
+	endCond = Builder.CreateFCmpONE(endCond, ConstantFP::get(getGlobalContext(), APFloat(0.0)), "loopcond");
 
-  BasicBlock *afterBlock = BasicBlock::Create(getGlobalContext(), "afterloop", func);
-  
-  // create the loop ending branch
-  Builder.CreateCondBr(endCond, loopBlock, afterBlock);
-  
-  // start inserting code after loop
-  Builder.SetInsertPoint(afterBlock);
+	BasicBlock *afterBlock = BasicBlock::Create(getGlobalContext(), "afterloop", func);
 
-  //phi->addIncoming(nextVal, loopEndBlock);
+	// create the loop ending branch
+	Builder.CreateCondBr(endCond, loopBlock, afterBlock);
 
-  // restore the saved variable
-  if (oldVal) 
+	// start inserting code after loop
+	Builder.SetInsertPoint(afterBlock);
+
+	// restore the saved variable
+	if (oldVal)
 	NamedValues[iterName] = oldVal;
-  else
+	else
 	NamedValues.erase(iterName);
 
-  return bodyVal;
+	return bodyVal;
 }
 
 Function *Codegen::Generate(PrototypeAST *proto) {
@@ -279,7 +302,7 @@ Function *Codegen::Generate(PrototypeAST *proto) {
 		func->eraseFromParent();
 		func = TheModule->getFunction(funcName);
 
-		if (!func->empty()) {
+		if ( !func->empty()) {
 			BaseError::Throw<Function*>("Redefinition of function");
 			return 0;
 		}
@@ -296,7 +319,7 @@ Function *Codegen::Generate(PrototypeAST *proto) {
 	}
 
 	return func;
-};
+}
 
 void Codegen::CreateArgumentAllocas(vector<string> args, Function *func) {
 	Function::arg_iterator AI = func->arg_begin();
@@ -317,104 +340,104 @@ void Codegen::CreateArgumentAllocas(PrototypeAST *proto, Function *func) {
 }
 
 Function *Codegen::Generate(FunctionAST *funcAst) {
-  NamedValues.clear();
+	NamedValues.clear();
 
-  Function *func = this->Generate(funcAst->GetPrototype());
-  if (func == 0)
+	Function *func = this->Generate(funcAst->GetPrototype());
+	if (func == 0)
 	return 0;
-	
-  BasicBlock *block = BasicBlock::Create(getGlobalContext(), "entry", func);
-  Builder.SetInsertPoint(block);
 
-  this->CreateArgumentAllocas(funcAst->GetPrototype(), func);
+	BasicBlock *block = BasicBlock::Create(getGlobalContext(), "entry", func);
+	Builder.SetInsertPoint(block);
 
-  // iterate and codegen all expressions in body  
-  Value *retVal = this->Generate(funcAst->GetBody());
+	this->CreateArgumentAllocas(funcAst->GetPrototype(), func);
 
-  if (retVal) {
-	Builder.CreateRet(retVal);
-	verifyFunction(*func);
-	TheFPM->run(*func);
-	return func;
-  }
-	
-  func->eraseFromParent();
+	// iterate and codegen all expressions in body
+	Value *retVal = this->Generate(funcAst->GetBody());
 
-  return 0;
-};
+	if (retVal) {
+		Builder.CreateRet(retVal);
+		verifyFunction( *func);
+		TheFPM->run( *func);
+		return func;
+	}
+
+	func->eraseFromParent();
+
+	return 0;
+}
 
 Value *Codegen::Generate(BlockAST *block) {
-  vector<ExprAST*> exprs = block->GetExpressions();
-  int size = exprs.size();
-  for (int i = 0; i < size; ++i) {
-	ExprAST *curr = exprs[i];
-	Value *val = this->Generate(curr);
+	vector<ExprAST*> exprs = block->GetExpressions();
+	int size = exprs.size();
+	for (int i = 0; i < size; ++i) {
+		ExprAST *curr = exprs[i];
+		Value *val = this->Generate(curr);
 
-	// create return value if last expression
-	if (i == size - 1)
-	  return val;
-  }  
-  
-  return 0;
+		// create return value if last expression
+		if (i == size - 1)
+		return val;
+	}
+
+	return 0;
 }
 
 Value *Codegen::Generate(UnaryExprAST *expr) {
-  ExprAST *code = expr->GetOperand();
-  Value *val = this->Generate(code);
-  if(!val)
+	ExprAST *code = expr->GetOperand();
+	Value *val = this->Generate(code);
+	if ( !val)
 	return 0;
 
-  Function *func = TheModule->getFunction("unary" + expr->GetOp());
-  if (func == 0)
+	Function *func = TheModule->getFunction("unary" + expr->GetOp());
+	if (func == 0)
 	return BaseError::Throw<Value*>("Unknown unary operator");
 
-  return Builder.CreateCall(func, val, "unaryop");
+	return Builder.CreateCall(func, val, "unaryop");
 }
 
 Function *Codegen::Generate(OperatorAST *opr) {
-  NamedValues.clear();
+	NamedValues.clear();
 
-  string opName = (opr->IsBinary() ? "binary" : "unary") + opr->GetOp();
-  vector<string> args = opr->GetArgs();
+	string opName = (opr->IsBinary() ? "binary" : "unary") + opr->GetOp();
+	vector<string> args = opr->GetArgs();
 
-  vector<Type*> Doubles(args.size(), Type::getDoubleTy(getGlobalContext()));
-  FunctionType *funcType = FunctionType::get(Type::getDoubleTy(getGlobalContext()), Doubles, false);
-  Function* func = Function::Create(funcType, Function::ExternalLinkage, opName, TheModule);
-  
-  if (func->getName() != opName) {
+	vector<Type*> Doubles(args.size(), Type::getDoubleTy(getGlobalContext()));
+	FunctionType *funcType = FunctionType::get(Type::getDoubleTy(getGlobalContext()), Doubles, false);
+	Function* func = Function::Create(funcType, Function::ExternalLinkage, opName, TheModule);
+
+	if (func->getName() != opName) {
+		func->eraseFromParent();
+		func = TheModule->getFunction(opName);
+
+		if ( !func->empty()) {
+			BaseError::Throw<Function*>("Redefinition of operator");
+			return 0;
+		}
+
+		if (func->arg_size() != args.size()) {
+			BaseError::Throw<Function*>("Redefinition of operator with wrong number of arguments");
+			return 0;
+		}
+	}
+
+	unsigned Idx = 0;
+	for (Function::arg_iterator AI = func->arg_begin(); Idx != args.size(); ++AI, ++Idx) {
+		AI->setName(args[Idx]);
+	}
+
+	// add the body
+	BasicBlock *block = BasicBlock::Create(getGlobalContext(), "opfunc", func);
+	Builder.SetInsertPoint(block);
+
+	this->CreateArgumentAllocas(args, func);
+
+	Value *retVal = this->Generate(opr->GetBody());
+	if (retVal) {
+		Builder.CreateRet(retVal);
+		verifyFunction( *func);
+		TheFPM->run( *func);
+		return func;
+	}
+
 	func->eraseFromParent();
-	func = TheModule->getFunction(opName);
-	
-	if (!func->empty()) {
-		BaseError::Throw<Function*>("Redefinition of operator");
-	  return 0;
-	}
-	
-	if (func->arg_size() != args.size()) {
-		BaseError::Throw<Function*>("Redefinition of operator with wrong number of arguments");
-	  	return 0;
-	}
-  }
-  
-  unsigned Idx = 0;
-  for (Function::arg_iterator AI = func->arg_begin(); Idx != args.size(); ++AI, ++Idx) {
-	  AI->setName(args[Idx]);
-  }
-  
-  // add the body 
-  BasicBlock *block = BasicBlock::Create(getGlobalContext(), "opfunc", func);
-  Builder.SetInsertPoint(block);
-
-  this->CreateArgumentAllocas(args, func);
-
-  Value *retVal = this->Generate(opr->GetBody());
-  if (retVal) {
-	Builder.CreateRet(retVal);
-	verifyFunction(*func);
-	TheFPM->run(*func);
-	return func;
-  }
-	
-  func->eraseFromParent();
-  return 0;
-};
+	return 0;
+}

@@ -17,41 +17,43 @@
 #define PARSER_HPP
 
 class Parser {
-  static map<char, int> BinopPrecedence;
-  Lexer TheLexer;
-  int CurTok;
+	static map<char, int> BinopPrecedence;
+	Lexer TheLexer;
+	int CurTok;
 
 public:
-  Parser();
-  int GetCurTok();
-  int GetNextToken();
-  Lexer *GetLexer() { return &(this->TheLexer); }
+	Parser();
+	int GetCurTok();
+	int GetNextToken();
+	Lexer *GetLexer() {
+		return &(this->TheLexer);
+	}
 
-  void SetInputFile(string file, int initialSeek);
+	void SetInputFile(string file, int initialSeek);
 
-  ExprAST *ParseNumberExpr();
-  ExprAST *ParseExpression();
-  ExprAST *ParseParenExpr();
-  ExprAST *ParseIdentifierExpr();
-  ExprAST *ParseUnary();
-  ExprAST *ParsePrimary();
-  ExprAST *ParseBinOpRHS(int exprPrec, ExprAST* lhs);
-  ExprAST *ParseConditional();
-  ExprAST *ParseFor();
+	ExprAST *ParseNumberExpr();
+	ExprAST *ParseExpression();
+	ExprAST *ParseParenExpr();
+	ExprAST *ParseIdentifierExpr();
+	ExprAST *ParseUnary();
+	ExprAST *ParsePrimary();
+	ExprAST *ParseBinOpRHS(int exprPrec, ExprAST* lhs);
+	ExprAST *ParseConditional();
+	ExprAST *ParseFor();
 
-  BlockAST *ParseBlock(int endOfBlock, int endOfBlockAlt);
-  BlockAST *ParseBlock(int endOfBlock);
-  BlockAST *ParseBlock();
+	BlockAST *ParseBlock(int endOfBlock, int endOfBlockAlt);
+	BlockAST *ParseBlock(int endOfBlock);
+	BlockAST *ParseBlock();
 
-  PrototypeAST *ParsePrototype();
-  FunctionAST *ParseDefinition();
-  OperatorAST *ParseOperator();
-  PrototypeAST *ParseExtern();
-  FunctionAST *ParseTopLevelExpr();
+	PrototypeAST *ParsePrototype();
+	FunctionAST *ParseDefinition();
+	OperatorAST *ParseOperator();
+	PrototypeAST *ParseExtern();
+	FunctionAST *ParseTopLevelExpr();
 
-  ImportAST *ParseImport();
-  
+	ImportAST *ParseImport();
+
 private:
-  int GetTokPrecedence();
+	int GetTokPrecedence();
 };
 #endif

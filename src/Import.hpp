@@ -1,14 +1,5 @@
 union Import {
-  string FileName;
-  int ParentCursorPosition;
+	string FileName;
+	int ParentCursorPosition;
 }
-
-
-
-
-
-
-
-
-
 

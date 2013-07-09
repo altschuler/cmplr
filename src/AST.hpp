@@ -19,7 +19,7 @@ enum ASTType {
 	ASTConditionalExpr, ASTForExpr,
 	ASTPrototype, ASTFunction,
 	ASTOperator, ASTUnary,
-	ASTBlock,
+	ASTBlock, ASTVar,
 };
 
 struct ImportAST {
@@ -36,7 +36,6 @@ class ExprAST {
 public:
 	virtual ~ExprAST() {
 	}
-	;
 	virtual ASTType GetASTType() = 0;
 };
 
@@ -217,11 +216,10 @@ class PrototypeAST {
 	string GetName() {
 		return this->Name;
 	}
-	;
+
 	vector<string> GetArgs() {
 		return this->Args;
 	}
-	;
 
 	ASTType GetASTType() {
 		return ASTPrototype;
@@ -240,11 +238,10 @@ class FunctionAST {
 	PrototypeAST *GetPrototype() {
 		return this->Prototype;
 	}
-	;
+
 	BlockAST *GetBody() {
 		return this->Body;
 	}
-	;
 
 	ASTType GetASTType() {
 		return ASTFunction;
@@ -285,27 +282,46 @@ class OperatorAST {
 	char GetOp() {
 		return this->Op;
 	}
-	;
+
 	int GetPrecedence() {
 		return this->Precedence;
 	}
-	;
+
 	vector<string> GetArgs() {
 		return this->Args;
 	}
-	;
+
 	BlockAST *GetBody() {
 		return this->Body;
 	}
-	;
 
 	bool IsBinary() {
 		return this->Args.size() == 2;
 	}
-	;
 
 	ASTType GetASTType() {
 		return ASTOperator;
+	}
+};
+
+class VarExprAST : public ExprAST {
+	string Name;
+	ExprAST *InitialValue;
+	public:
+	VarExprAST(string name, ExprAST *initVal)
+			: Name(name), InitialValue(initVal) {
+	}
+
+	string GetName() {
+		return this->Name;
+	}
+
+	ExprAST *GetInitialValue() {
+		return this->InitialValue;
+	}
+
+	ASTType GetASTType() {
+		return ASTVar;
 	}
 };
 

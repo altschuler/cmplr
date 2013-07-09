@@ -1,8 +1,16 @@
-import 'examples/stdlib';
+import 'examples/stdlib'
 
 def assert(id a b) 
-	if a = b then 0;
-	else pdoub(id); pchar(33); pdoub(a); pchar(59); pdoub(b); pchar(32); end;
+	if a ~ b then
+	   	0;
+	else 
+		pdoub(id); 
+		pchar(33); 
+		pdoub(a); 
+		pchar(59); 
+		pdoub(b); 
+		pchar(10); 
+	end
 end
 
 ## lang test
@@ -22,9 +30,9 @@ assert(402, if 0 then 1; elsif 1 then 2; else 3; end, 2);
 assert(403, if 0 then 1; elsif 0 then 2; else 3; end, 3);
 
 ## for loops
-def fuu() 
+def fuu()
 	for i = 0, i < 5 in 
-		i; 
+		i;
 	end
 end
 assert(500, fuu(), 5);
@@ -41,7 +49,7 @@ assert(203, foo(bar(1, 2)), 2);
 
 # recursive
 def fib(n)
-	if n < 2 then 1; else fib(n - 1) + fib(n - 2); end;
+	if n < 2 then 1; else fib(n - 1) + fib(n - 2); end
 end
 assert(301, fib(1), 1);
 assert(302, fib(5), 8);
@@ -77,9 +85,22 @@ assert(15, 0 & 1, 0);
 assert(16, 1 & 1, 1);
 assert(17, 0 & 0, 0);
 
-# = op
-#assert(18, 1 = 0, 0);
-#assert(19, 0 = 1, 0);
-#assert(20, 1 = 1, 1);
-#assert(21, 0 = 0, 1);
+# ~ op
+assert(18, 1 ~ 0, 0);
+assert(19, 0 ~ 1, 0);
+assert(20, 1 ~ 1, 1);
+assert(21, 0 ~ 0, 1);
+
+# variable mutability
+def f1(n)
+	n = n + 1;
+end
+assert(600, f1(1), 2);
+
+def f2(n)
+	n = 0;
+	n = 4;
+end
+assert(601, f2(1), 4);
+
 

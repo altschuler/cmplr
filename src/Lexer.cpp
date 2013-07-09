@@ -49,6 +49,7 @@ int Lexer::GetToken() {
 		if (IdentifierStr == "op") return tok_op;
 		if (IdentifierStr == "import") return tok_import;
 		if (IdentifierStr == "end") return tok_end;
+		if (IdentifierStr == "var") return tok_var;
 
 		return tok_identifier;
 	}

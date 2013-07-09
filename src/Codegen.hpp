@@ -38,8 +38,6 @@ public:
 		return this->ExecEngine;
 	}
 
-	AllocaInst *CreateEntryBlockAlloca(Function *func, string varName);
-
 	Value *Generate(ExprAST *expr);
 	Value *Generate(NumberExprAST *expr);
 	Value *Generate(VariableExprAST *expr);
@@ -49,10 +47,15 @@ public:
 	Value *Generate(ConditionalExprAST *expr);
 	Value *Generate(ForExprAST *expr);
 	Value *Generate(BlockAST *block);
+	Value *Generate(VarExprAST *varAst);
 
 	Function *Generate(OperatorAST *expr);
 	Function *Generate(PrototypeAST *proto);
 	Function *Generate(FunctionAST *func);
+
+
+	AllocaInst *CreateEntryBlockAlloca(Function *func, string varName);
+	AllocaInst *CreateEntryBlockAlloca(BasicBlock *block, string varName);
 
 	void CreateArgumentAllocas(PrototypeAST *proto, Function *func);
 	void CreateArgumentAllocas(vector<string> args, Function *func);

@@ -31,6 +31,8 @@ enum Token {
 
 	tok_for = -16384,
 	tok_in = -32768,
+
+	tok_var = -65536,
 };
 
 class Lexer {

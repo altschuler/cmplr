@@ -27,6 +27,29 @@ AllocaInst *Codegen::CreateEntryBlockAlloca(Function *func, string varName) {
 	return builder.CreateAlloca(Type::getDoubleTy(getGlobalContext()), 0, varName.c_str());
 }
 
+AllocaInst *Codegen::CreateEntryBlockAlloca(BasicBlock *block, string varName) {
+	IRBuilder<> builder(block, block->begin());
+	return builder.CreateAlloca(Type::getDoubleTy(getGlobalContext()), 0, varName.c_str());
+}
+
+void Codegen::CreateArgumentAllocas(vector<string> args, Function *func) {
+	Function::arg_iterator AI = func->arg_begin();
+	for (unsigned Idx = 0, e = args.size(); Idx != e; ++Idx, ++AI) {
+		// Create an alloca for this variable.
+		AllocaInst *Alloca = this->CreateEntryBlockAlloca(func, args[Idx]);
+
+		// Store the initial value into the alloca.
+		Builder.CreateStore(AI, Alloca);
+
+		// Add arguments to variable symbol table.
+		NamedValues[args[Idx]] = Alloca;
+	}
+}
+
+void Codegen::CreateArgumentAllocas(PrototypeAST *proto, Function *func) {
+	this->CreateArgumentAllocas(proto->GetArgs(), func);
+}
+
 Value *Codegen::Generate(ExprAST *expr) {
 	switch (expr->GetASTType()) {
 		case ASTNumberExpr:
@@ -59,6 +82,9 @@ Value *Codegen::Generate(ExprAST *expr) {
 		case ASTOperator:
 			return this->Generate((OperatorAST *) expr);
 			break;
+		case ASTVar:
+			return this->Generate((VarExprAST *) expr);
+			break;
 		case ASTBlock:
 			return 0;
 	}
@@ -73,7 +99,7 @@ Value *Codegen::Generate(VariableExprAST *expr) {
 	AllocaInst *alloca = NamedValues[name];
 
 	if (alloca == 0)
-	return BaseError::Throw<Value*>(str(boost::format("Unknown variable '%1%'") % name).c_str());
+		return BaseError::Throw<Value*>(str(boost::format("Unknown variable '%1%'") % name).c_str());
 
 	return Builder.CreateLoad(alloca, name.c_str()); // XXX remove c_str
 }
@@ -85,15 +111,15 @@ Value *Codegen::Generate(BinaryExprAST *expr) {
 	if (expr->GetOp() == '=') {
 		VariableExprAST *identifier = dynamic_cast<VariableExprAST*>(expr->GetLHS());
 		if ( !identifier)
-		return BaseError::Throw<Value*>("Left hand of assignment must be a variable");
+			return BaseError::Throw<Value*>("Left hand of assignment must be a variable");
 
 		Value *val = this->Generate(expr->GetRHS());
 		if ( !val)
-		return BaseError::Throw<Value*>("Invalid assignment value to variable");
+			return BaseError::Throw<Value*>("Invalid assignment value to variable");
 
 		Value *variable = NamedValues[identifier->GetName()];
 		if ( !variable)
-		return BaseError::Throw<Value*>("Unknown variable, cannot assign");
+			return BaseError::Throw<Value*>("Unknown variable, cannot assign");
 
 		Builder.CreateStore(val, variable);
 		return val;
@@ -103,7 +129,7 @@ Value *Codegen::Generate(BinaryExprAST *expr) {
 	Value *R = this->Generate(expr->GetRHS());
 
 	if (L == 0 || R == 0)
-	return 0;
+		return 0;
 
 	switch (expr->GetOp()) {
 		case '+':
@@ -123,7 +149,7 @@ Value *Codegen::Generate(BinaryExprAST *expr) {
 
 	Function *opFunc = TheModule->getFunction("binary" + expr->GetOp());
 	if ( !opFunc)
-	return BaseError::Throw<Value*>(str(format("Unknown binary operator '%1%'") % expr->GetOp()));
+		return BaseError::Throw<Value*>(str(format("Unknown binary operator '%1%'") % expr->GetOp()));
 
 	Value *args[2] = { L, R };
 	return Builder.CreateCall(opFunc, args, "binop");
@@ -137,20 +163,20 @@ Value *Codegen::Generate(CallExprAST *expr) {
 
 	Function *CalleeF = TheModule->getFunction(callee);
 	if (CalleeF == 0)
-	return BaseError::Throw<Value*>(str(format("Unknown function '%1%'") % callee));
+		return BaseError::Throw<Value*>(str(format("Unknown function '%1%'") % callee));
 
 	if (CalleeF->arg_size() != args.size())
-	return BaseError::Throw<Value*>(str(boost::format("Wrong number of arguments in function %1%; got %2%, %3% expected")
-			% callee.c_str()
-			% args.size()
-			% CalleeF->arg_size()));
+		return BaseError::Throw<Value*>(str(boost::format("Wrong number of arguments in function %1%; got %2%, %3% expected")
+				% callee.c_str()
+				% args.size()
+				% CalleeF->arg_size()));
 
 	vector<Value*> ArgsV;
 	for (unsigned i = 0, e = args.size(); i != e; ++i) {
 		Value *arg = this->Generate(args[i]);
 		ArgsV.push_back(arg);
 		if (ArgsV.back() == 0)
-		return 0;
+			return 0;
 	}
 
 	ArrayRef<Value*> *argArr = new ArrayRef<Value*>(ArgsV);
@@ -177,7 +203,7 @@ Value *Codegen::Generate(ConditionalExprAST *expr) {
 		Value *condVal = this->Generate(elm->GetCond());
 		condVal = Builder.CreateFCmpONE(condVal, ConstantFP::get(getGlobalContext(), APFloat(0.0)), "ifcond");
 		if (condVal == 0)
-		return BaseError::Throw<Value*>("Condition is undefined");
+			return BaseError::Throw<Value*>("Condition is undefined");
 
 		BasicBlock *condBlock = BasicBlock::Create(getGlobalContext(), "then");
 		BasicBlock *nextBlock = BasicBlock::Create(getGlobalContext(), "else");
@@ -204,7 +230,7 @@ Value *Codegen::Generate(ConditionalExprAST *expr) {
 	// 'else' block
 	Value *elseVal = this->Generate(expr->GetElse());
 	if (elseVal == 0)
-	return BaseError::Throw<Value*>("'else' value is undefined");
+		return BaseError::Throw<Value*>("'else' value is undefined");
 
 	Builder.CreateBr(mergeBlock);
 	//elseBlock = Builder.GetInsertBlock();
@@ -230,7 +256,7 @@ Value *Codegen::Generate(ForExprAST *expr) {
 
 	Value *initVal = this->Generate(expr->GetInit());
 	if (initVal == 0)
-	return 0;
+		return 0;
 
 	Builder.CreateStore(initVal, alloca);
 
@@ -246,14 +272,14 @@ Value *Codegen::Generate(ForExprAST *expr) {
 	// emit body code into loop block
 	Value* bodyVal = this->Generate(expr->GetBody());
 	if (bodyVal == 0)
-	return 0;
+		return 0;
 
 	// handle step
 	Value *stepVal;
 	if (expr->GetStep()) {
 		stepVal = this->Generate(expr->GetStep());
 		if (stepVal == 0)
-		return 0;
+			return 0;
 	}
 	// if step is not specified, use ++
 	else {
@@ -262,7 +288,7 @@ Value *Codegen::Generate(ForExprAST *expr) {
 
 	Value *endCond = this->Generate(expr->GetEnd());
 	if (endCond == 0)
-	return 0;
+		return 0;
 
 	Value *currentVal = Builder.CreateLoad(alloca, iterName.c_str());
 	Value *nextVal = Builder.CreateFAdd(currentVal, stepVal, "nextvar");
@@ -281,9 +307,9 @@ Value *Codegen::Generate(ForExprAST *expr) {
 
 	// restore the saved variable
 	if (oldVal)
-	NamedValues[iterName] = oldVal;
+		NamedValues[iterName] = oldVal;
 	else
-	NamedValues.erase(iterName);
+		NamedValues.erase(iterName);
 
 	return bodyVal;
 }
@@ -321,30 +347,12 @@ Function *Codegen::Generate(PrototypeAST *proto) {
 	return func;
 }
 
-void Codegen::CreateArgumentAllocas(vector<string> args, Function *func) {
-	Function::arg_iterator AI = func->arg_begin();
-	for (unsigned Idx = 0, e = args.size(); Idx != e; ++Idx, ++AI) {
-		// Create an alloca for this variable.
-		AllocaInst *Alloca = this->CreateEntryBlockAlloca(func, args[Idx]);
-
-		// Store the initial value into the alloca.
-		Builder.CreateStore(AI, Alloca);
-
-		// Add arguments to variable symbol table.
-		NamedValues[args[Idx]] = Alloca;
-	}
-}
-
-void Codegen::CreateArgumentAllocas(PrototypeAST *proto, Function *func) {
-	this->CreateArgumentAllocas(proto->GetArgs(), func);
-}
-
 Function *Codegen::Generate(FunctionAST *funcAst) {
 	NamedValues.clear();
 
 	Function *func = this->Generate(funcAst->GetPrototype());
 	if (func == 0)
-	return 0;
+		return 0;
 
 	BasicBlock *block = BasicBlock::Create(getGlobalContext(), "entry", func);
 	Builder.SetInsertPoint(block);
@@ -375,7 +383,7 @@ Value *Codegen::Generate(BlockAST *block) {
 
 		// create return value if last expression
 		if (i == size - 1)
-		return val;
+			return val;
 	}
 
 	return 0;
@@ -385,11 +393,11 @@ Value *Codegen::Generate(UnaryExprAST *expr) {
 	ExprAST *code = expr->GetOperand();
 	Value *val = this->Generate(code);
 	if ( !val)
-	return 0;
+		return 0;
 
 	Function *func = TheModule->getFunction("unary" + expr->GetOp());
 	if (func == 0)
-	return BaseError::Throw<Value*>("Unknown unary operator");
+		return BaseError::Throw<Value*>(str(boost::format("Unknown unary operator '%1%'") % expr->GetOp()));
 
 	return Builder.CreateCall(func, val, "unaryop");
 }
@@ -440,4 +448,22 @@ Function *Codegen::Generate(OperatorAST *opr) {
 
 	func->eraseFromParent();
 	return 0;
+}
+
+Value *Codegen::Generate(VarExprAST *varAst) {
+
+	BasicBlock *currentEntry = Builder.GetInsertBlock();
+
+	// allocate the variable
+	AllocaInst *alloca = this->CreateEntryBlockAlloca(currentEntry, varAst->GetName());
+
+	Value *initVal = this->Generate(varAst->GetInitialValue());
+
+	// store the initial value
+	Builder.CreateStore(initVal, alloca);
+
+	// save the variable in the symbol table
+	NamedValues[varAst->GetName()] = alloca;
+
+	return alloca;
 }

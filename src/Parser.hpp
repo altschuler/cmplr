@@ -40,6 +40,7 @@ public:
 	ExprAST *ParseBinOpRHS(int exprPrec, ExprAST* lhs);
 	ExprAST *ParseConditional();
 	ExprAST *ParseFor();
+	ExprAST *ParseVarExpr();
 
 	BlockAST *ParseBlock(int endOfBlock, int endOfBlockAlt);
 	BlockAST *ParseBlock(int endOfBlock);

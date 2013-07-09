@@ -1,9 +1,11 @@
-extern pdoub(a);
+import 'examples/stdlib';
 
-def foo(n)
-	pdoub(n);
-	n = 10;
-	pdoub(n);
+def f1(n)
+	var a = 2;
+	var b = 0;
+	for i = a, i < n in 
+		b = b + 1;
+	end
 end
 
-pdoub(foo(1));
+pdoub(f1(4));

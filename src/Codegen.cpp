@@ -298,14 +298,28 @@ Function *Codegen::Generate(PrototypeAST *proto) {
   unsigned Idx = 0;
   for (Function::arg_iterator AI = func->arg_begin(); Idx != args.size(); ++AI, ++Idx)
 	{
-	  AllocaInst *alloca = this->CreateEntryBlockAlloca(func, args[Idx]);
-	  Builder.CreateStore(AI, alloca);
-	  NamedValues[args[Idx]] = alloca;
+	  AI->setName(args[Idx]);
+//	  AllocaInst *alloca = this->CreateEntryBlockAlloca(func, args[Idx]);
+//	  Builder.CreateStore(AI, alloca);
+//	  NamedValues[args[Idx]] = alloca;
 	}
 
   return func;
 };
 
+void Codegen::CreateArgumentAllocas(PrototypeAST *proto, Function *func) {
+	Function::arg_iterator AI = func->arg_begin();
+	for (unsigned Idx = 0, e = proto->GetArgs().size(); Idx != e; ++Idx, ++AI) {
+		// Create an alloca for this variable.
+		AllocaInst *Alloca = this->CreateEntryBlockAlloca(func, proto->GetArgs()[Idx]);
+
+		// Store the initial value into the alloca.
+		Builder.CreateStore(AI, Alloca);
+
+		// Add arguments to variable symbol table.
+		NamedValues[proto->GetArgs()[Idx]] = Alloca;
+	}
+}
 
 Function *Codegen::Generate(FunctionAST *funcAst) {
   NamedValues.clear();
@@ -316,6 +330,8 @@ Function *Codegen::Generate(FunctionAST *funcAst) {
 	
   BasicBlock *block = BasicBlock::Create(getGlobalContext(), "entry", func);
   Builder.SetInsertPoint(block);
+
+  this->CreateArgumentAllocas(funcAst->GetPrototype(), func);
 
   // iterate and codegen all expressions in body  
   Value *retVal = this->Generate(funcAst->GetBody());

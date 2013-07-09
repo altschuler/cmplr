@@ -48,7 +48,9 @@ public:
 
   Function *Generate(OperatorAST *expr);
   Function *Generate(PrototypeAST *proto);
-  Function *Generate(FunctionAST *proto);
+  Function *Generate(FunctionAST *func);
+
+  void CreateArgumentAllocas(PrototypeAST *proto, Function *func);
 };
 
 #endif

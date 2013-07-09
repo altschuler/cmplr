@@ -1,6 +1,6 @@
 import 'examples/stdlib';
 
-def f1(n)
+func f1(n)
 	var a = 2;
 	var b = 0;
 	for i = a, i < n in 

@@ -1,6 +1,6 @@
 import 'examples/stdlib'
 
-def assert(id a b) 
+func assert(id a b)
 	if a ~ b then
 	   	0;
 	else 
@@ -30,7 +30,7 @@ assert(402, if 0 then 1; elsif 1 then 2; else 3; end, 2);
 assert(403, if 0 then 1; elsif 0 then 2; else 3; end, 3);
 
 ## for loops
-def fuu()
+func fuu()
 	for i = 0, i < 5 in 
 		i;
 	end
@@ -39,16 +39,16 @@ assert(500, fuu(), 5);
 
 ## defs
 # return val
-def foo(a) a; end
-def bar(a b) a; b; end
-def baz(a b) a; b; end
+func foo(a) a; end
+func bar(a b) a; b; end
+func baz(a b) a; b; end
 
 assert(201, foo(1), 1);
 assert(202, bar(1, 2), 2);
 assert(203, foo(bar(1, 2)), 2);
 
 # recursive
-def fib(n)
+func fib(n)
 	if n < 2 then 1; else fib(n - 1) + fib(n - 2); end
 end
 assert(301, fib(1), 1);
@@ -92,12 +92,12 @@ assert(20, 1 ~ 1, 1);
 assert(21, 0 ~ 0, 1);
 
 # variable mutability
-def f1(n)
+func f1(n)
 	n = n + 1;
 end
 assert(600, f1(1), 2);
 
-def f2(n)
+func f2(n)
 	n = 0;
 	n = 4;
 end

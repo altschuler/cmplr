@@ -58,7 +58,7 @@ void Driver::Go(string file) {
 		switch (TheParser.GetCurTok()) {
 			case tok_eof:
 				return;
-			case tok_def:
+			case tok_func:
 				HandleDefinition();
 				break;
 			case tok_extern:

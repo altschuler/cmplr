@@ -38,7 +38,7 @@ int Lexer::GetToken() {
 		while (isalnum(LastChar = this->GetNextChar()))
 			IdentifierStr += LastChar;
 
-		if (IdentifierStr == "def") return tok_def;
+		if (IdentifierStr == "func") return tok_func;
 		if (IdentifierStr == "extern") return tok_extern;
 		if (IdentifierStr == "if") return tok_if;
 		if (IdentifierStr == "then") return tok_then;

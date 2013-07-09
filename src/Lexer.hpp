@@ -14,7 +14,7 @@ enum Token {
 	tok_eof = -2,
 	tok_import = -4,
 
-	tok_def = -8,
+	tok_func = -8,
 	tok_op = -16,
 	tok_end = -32,
 

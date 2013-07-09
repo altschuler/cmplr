@@ -42,7 +42,7 @@ extern wait(t);
 extern exit();
 
 # utilities
-def plines(n) # print multiple new lines
+func plines(n) # print multiple new lines
 	for i = 0, i < n - 1 in
 		pline();
 	end

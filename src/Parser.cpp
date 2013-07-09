@@ -338,7 +338,7 @@ PrototypeAST *Parser::ParsePrototype() {
 }
 
 FunctionAST *Parser::ParseDefinition() {
-	this->GetNextToken(); // eat 'def'
+	this->GetNextToken(); // eat 'func'
 	PrototypeAST *prototype = this->ParsePrototype();
 	if (prototype == 0)
 		return 0;

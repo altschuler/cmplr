@@ -1,6 +1,6 @@
 import 'examples/stdlib';
 
-def printdensity(d)
+func printdensity(d)
   if d > 8 then
     pchar(32);  # ' '
   elsif d > 4 then
@@ -15,7 +15,7 @@ end
 
 # Determine whether the specific location diverges.
 # Solve for z = z^2 + c in the complex plane.
-def mandleconverger(real imag iters creal cimag)
+func mandleconverger(real imag iters creal cimag)
   if iters > 255 | (real*real + imag*imag > 4) then
     iters;
   else
@@ -26,14 +26,14 @@ def mandleconverger(real imag iters creal cimag)
 end
 
 # Return the number of iterations required for the iteration to escape
-def mandelconverge(real imag)
+func mandelconverge(real imag)
   mandleconverger(real, imag, 0, real, imag);
 end  
   
 # Compute and plot the mandlebrot set with the specified 2 dimensional range
 # info.
 
-def mandelhelp(xmin xmax xstep   ymin ymax ystep)
+func mandelhelp(xmin xmax xstep   ymin ymax ystep)
   for y = ymin, y < ymax, ystep in
     for x = xmin, x < xmax, xstep in
        printdensity(mandelconverge(x, y));
@@ -44,6 +44,6 @@ end
 
 # mandel - This is a convenient helper function for plotting the mandelbrot set
 # from the specified position with the specified Magnification.
-def mandel(realstart imagstart realmag imagmag)
+func mandel(realstart imagstart realmag imagmag)
   mandelhelp(realstart, realstart+realmag*78, realmag, imagstart, imagstart+imagmag*40, imagmag);
 end
